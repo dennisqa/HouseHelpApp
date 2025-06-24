@@ -1,0 +1,2608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Domestic Workers App - Connect Domestic Workers with Employers</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        .mobile-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 480px) {
+            .mobile-container {
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root">Loading...</div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Simple icons as SVG components
+        const HomeIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9,22 9,12 15,12 15,22"/>
+            </svg>
+        );
+
+        const BriefcaseIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+        );
+
+        const MessageIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+        );
+
+        const UserIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+            </svg>
+        );
+
+        const PlusIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+        );
+
+        const ArrowLeftIcon = ({ onClick }) => (
+            <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="cursor-pointer"
+                onClick={onClick}
+            >
+                <path d="M19 12H5"/>
+                <path d="M12 19l-7-7 7-7"/>
+            </svg>
+        );
+
+        const SendIcon = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+            </svg>
+        );
+
+        const EditIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+        );
+
+        const DeleteIcon = () => (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3,6 5,6 21,6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <line x1="10" y1="11" x2="10" y2="17"/>
+                <line x1="14" y1="11" x2="14" y2="17"/>
+            </svg>
+        );
+
+       // Debug API Service with better error handling
+const API_BASE_URL = '/.netlify/functions';
+
+const ApiService = {
+    // Helper function for making requests with better error handling
+    makeRequest: async (url, options = {}) => {
+        console.log('Making request to:', url);
+        console.log('Options:', options);
+        
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            
+            console.log('Response status:', response.status);
+            console.log('Response headers:', response.headers);
+            
+            const responseText = await response.text();
+            console.log('Response text:', responseText);
+            
+            if (!response.ok) {
+                let errorMessage;
+                try {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.error || `HTTP ${response.status}`;
+                } catch (e) {
+                    errorMessage = `HTTP ${response.status}: ${responseText}`;
+                }
+                throw new Error(errorMessage);
+            }
+            
+            if (!responseText) {
+                throw new Error('Empty response from server');
+            }
+            
+            try {
+                return JSON.parse(responseText);
+            } catch (e) {
+                console.error('JSON parse error:', e);
+                console.error('Response was:', responseText);
+                throw new Error('Invalid JSON response from server');
+            }
+        } catch (error) {
+            console.error('Request failed:', error);
+            throw error;
+        }
+    },
+
+    // User authentication
+    register: async (userData) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/users?action=register`, {
+            method: 'POST',
+            body: JSON.stringify(userData)
+        });
+    },
+
+    login: async (credentials) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/users?action=login`, {
+            method: 'POST',
+            body: JSON.stringify(credentials)
+        });
+    },
+
+    // Workers
+    getWorkers: async () => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/users?action=workers`);
+    },
+
+    updateWorkerProfile: async (userId, profileData) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/users?id=${userId}&type=worker`, {
+            method: 'PUT',
+            body: JSON.stringify(profileData)
+        });
+    },
+
+    // Jobs
+    getJobs: async (employerId = null) => {
+        const url = employerId ? `${API_BASE_URL}/jobs?employer_id=${employerId}` : `${API_BASE_URL}/jobs`;
+        return await ApiService.makeRequest(url);
+    },
+
+    createJob: async (jobData) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/jobs`, {
+            method: 'POST',
+            body: JSON.stringify(jobData)
+        });
+    },
+
+    updateJob: async (jobId, jobData) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/jobs?id=${jobId}`, {
+            method: 'PUT',
+            body: JSON.stringify(jobData)
+        });
+    },
+
+    deleteJob: async (jobId) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/jobs?id=${jobId}`, {
+            method: 'DELETE'
+        });
+    },
+
+    // Applications
+    applyToJob: async (applicationData) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/applications`, {
+            method: 'POST',
+            body: JSON.stringify(applicationData)
+        });
+    },
+
+    getWorkerApplications: async (workerId) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/applications?worker_id=${workerId}`);
+    },
+
+    // Conversations
+    getConversations: async (userId) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/conversations?user_id=${userId}`);
+    },
+
+    createConversation: async (conversationData) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/conversations`, {
+            method: 'POST',
+            body: JSON.stringify(conversationData)
+        });
+    },
+
+    // Messages
+    getMessages: async (conversationId) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/messages?conversation_id=${conversationId}`);
+    },
+
+    sendMessage: async (messageData) => {
+        return await ApiService.makeRequest(`${API_BASE_URL}/messages`, {
+            method: 'POST',
+            body: JSON.stringify(messageData)
+        });
+    }
+};
+
+        // CRUD Operations for persistent storage (REMOVED - Now using API)
+        const StorageManager = {
+            // These functions are kept for backward compatibility but now use API
+            saveUser: async (user) => {
+                // This will be handled by registration/login API calls
+                return user;
+            },
+            
+            saveJob: async (job) => {
+                // This will be handled by job creation/update API calls
+                return job;
+            },
+            
+            saveMessage: async (message) => {
+                // This will be handled by message API calls
+                return message;
+            },
+            
+            saveApplication: async (application) => {
+                // This will be handled by application API calls
+                return application;
+            }
+        };
+
+        const App = () => {
+            const [screen, setScreen] = useState("landing");
+            const [userType, setUserType] = useState("employer");
+            const [selectedWorker, setSelectedWorker] = useState(null);
+            const [selectedConversation, setSelectedConversation] = useState(null);
+            const [messageInput, setMessageInput] = useState("");
+            const [messages, setMessages] = useState([]);
+            const [activeTab, setActiveTab] = useState("posted");
+            const [loginCredentials, setLoginCredentials] = useState({ email: "", password: "" });
+            const [isLoggedIn, setIsLoggedIn] = useState(false);
+            const [currentUser, setCurrentUser] = useState(null);
+            const [selectedJob, setSelectedJob] = useState(null);
+            const [users, setUsers] = useState([]);
+            const [jobs, setJobs] = useState([]);
+            const [workerProfiles, setWorkerProfiles] = useState([]);
+            const [conversations, setConversations] = useState([]);
+            const [applications, setApplications] = useState([]);
+            
+            // Enhanced Registration forms
+            const [registrationForm, setRegistrationForm] = useState({
+                name: "",
+                age: "",
+                email: "",
+                phone: "",
+                location: "",
+                password: "",
+                confirmPassword: "",
+                about: "",
+                // Worker specific fields
+                skills: "",
+                experience: "",
+                availability: "",
+                serviceArea: "",
+                monthlySalary: "", // Changed from hourlyRate
+                jobType: "", // New field: 'permanent', 'daily', or 'both'
+                profilePhoto: null, // New field for photo
+            });
+
+            const [workerProfile, setWorkerProfile] = useState({
+                skills: "",
+                experience: "",
+                availability: "",
+                serviceArea: "",
+                hourlyRate: "",
+                isAvailable: true
+            });
+            
+            const [jobForm, setJobForm] = useState({
+                title: "",
+                skills: "",
+                schedule: "",
+                location: "",
+                salary: "",
+                description: "",
+                jobType: "", // New field: 'permanent' or 'daily'
+            });
+
+            // Load data on component mount
+            useEffect(() => {
+                const loadData = async () => {
+                    if (isLoggedIn && currentUser) {
+                        try {
+                            // Load workers if user is employer
+                            if (currentUser.user_type === 'employer') {
+                                const workers = await ApiService.getWorkers();
+                                setUsers(workers);
+                            }
+                            
+                            // Load jobs
+                            const jobs = await ApiService.getJobs();
+                            setJobs(jobs);
+                            
+                            // Load user's applications if worker
+                            if (currentUser.user_type === 'worker') {
+                                const apps = await ApiService.getWorkerApplications(currentUser.id);
+                                setApplications(apps);
+                            }
+                            
+                            // Load conversations
+                            const convos = await ApiService.getConversations(currentUser.id);
+                            setConversations(convos);
+                        } catch (error) {
+                            console.error('Error loading data:', error);
+                        }
+                    }
+                };
+                
+                loadData();
+            }, [isLoggedIn, currentUser]);
+
+            // Photo Upload Handler
+            const handlePhotoUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    // Convert to base64 for preview
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        setRegistrationForm({
+                            ...registrationForm,
+                            profilePhoto: e.target.result
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            // Registration form handlers
+            const handleRegistrationFormChange = (e) => {
+                const { name, value } = e.target;
+                setRegistrationForm({ ...registrationForm, [name]: value });
+            };
+
+            const handleRegistration = async (type) => {
+                const { name, age, email, phone, location, password, confirmPassword, about } = registrationForm;
+                
+                // Enhanced validation
+                if (!name || !email || !phone || !location || !password) {
+                    alert("Please fill in all required fields");
+                    return;
+                }
+
+                if (type === "worker") {
+                    if (!age || !registrationForm.skills || !registrationForm.experience || 
+                        !registrationForm.availability || !registrationForm.monthlySalary || 
+                        !registrationForm.jobType || !registrationForm.profilePhoto) {
+                        alert("Please fill in all worker-specific fields including photo upload");
+                        return;
+                    }
+
+                    if (age < 18 || age > 70) {
+                        alert("Age must be between 18 and 70 years");
+                        return;
+                    }
+                }
+                
+                if (password !== confirmPassword) {
+                    alert("Passwords do not match");
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    alert("Password must be at least 6 characters long");
+                    return;
+                }
+                
+                try {
+                    // Prepare user data
+                    const userData = {
+                        name,
+                        email,
+                        phone,
+                        location,
+                        password,
+                        about,
+                        user_type: type
+                    };
+                    
+                    // Add worker-specific fields
+                    if (type === "worker") {
+                        userData.age = parseInt(age);
+                        userData.skills = registrationForm.skills;
+                        userData.experience = registrationForm.experience;
+                        userData.availability = registrationForm.availability;
+                        userData.service_area = registrationForm.serviceArea || location;
+                        userData.monthly_salary = registrationForm.monthlySalary;
+                        userData.job_type = registrationForm.jobType;
+                        userData.profile_photo_url = registrationForm.profilePhoto; // In production, upload to cloud storage
+                    }
+                    
+                    // Register user via API
+                    await ApiService.register(userData);
+                    
+                    // Reset form
+                    setRegistrationForm({
+                        name: "",
+                        age: "",
+                        email: "",
+                        phone: "",
+                        location: "",
+                        password: "",
+                        confirmPassword: "",
+                        about: "",
+                        skills: "",
+                        experience: "",
+                        availability: "",
+                        serviceArea: "",
+                        monthlySalary: "",
+                        jobType: "",
+                        profilePhoto: null,
+                    });
+                    
+                    alert("Account created successfully! Please login with your credentials.");
+                    setScreen(type === "employer" ? "employerLogin" : "workerLogin");
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
+            const handleLogin = async () => {
+                const { email, password } = loginCredentials;
+
+                if (!email || !password) {
+                    alert("Please enter both email and password");
+                    return;
+                }
+
+                try {
+                    // Login via API
+                    const user = await ApiService.login({ email, password });
+                    
+                    setCurrentUser(user);
+                    setUserType(user.user_type);
+                    setIsLoggedIn(true);
+                    setScreen(user.user_type === "employer" ? "employerHome" : "workerHome");
+                    setLoginCredentials({ email: "", password: "" });
+                    
+                    // Load user's worker profile if they're a worker
+                    if (user.user_type === "worker" && user.worker_profile) {
+                        setWorkerProfile({
+                            skills: user.worker_profile.skills || "",
+                            experience: user.worker_profile.experience || "",
+                            availability: user.worker_profile.availability || "",
+                            serviceArea: user.worker_profile.service_area || "",
+                            hourlyRate: user.worker_profile.hourly_rate || "",
+                            isAvailable: user.is_active || true
+                        });
+                    }
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
+            const handleLogout = () => {
+                setIsLoggedIn(false);
+                setCurrentUser(null);
+                setUserType("employer");
+                setLoginCredentials({ email: "", password: "" });
+                setScreen("landing");
+            };
+
+            const goToScreen = (newScreen) => {
+                setScreen(newScreen);
+            };
+
+            const selectWorker = (worker) => {
+                setSelectedWorker(worker);
+                setScreen("workerDetail");
+            };
+
+            const selectConversation = (convo) => {
+                setSelectedConversation(convo);
+                setMessages([...convo.messages]);
+                setScreen("chatDetail");
+            };
+
+            const sendMessage = async () => {
+                if (messageInput.trim() === "") return;
+
+                try {
+                    const messageData = {
+                        conversation_id: selectedConversation.id,
+                        sender_id: currentUser.id,
+                        message_text: messageInput
+                    };
+
+                    await ApiService.sendMessage(messageData);
+                    
+                    // Reload messages
+                    const updatedMessages = await ApiService.getMessages(selectedConversation.id);
+                    setMessages(updatedMessages);
+                    
+                    setMessageInput("");
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
+            const handleJobFormChange = (e) => {
+                const { name, value } = e.target;
+                setJobForm({ ...jobForm, [name]: value });
+            };
+
+            const handleWorkerProfileChange = (e) => {
+                const { name, value, type, checked } = e.target;
+                setWorkerProfile({ 
+                    ...workerProfile, 
+                    [name]: type === 'checkbox' ? checked : value 
+                });
+            };
+
+            // Simulate Payment (replace with real payment integration)
+            const simulatePayment = async () => {
+                // Show loading
+                const paymentMethods = ["M-Pesa", "Credit Card", "Bank Transfer"];
+                const selectedMethod = prompt(
+                    `Select payment method:\n1. M-Pesa\n2. Credit Card\n3. Bank Transfer\n\nEnter 1, 2, or 3:`
+                );
+                
+                if (!selectedMethod || !["1", "2", "3"].includes(selectedMethod)) {
+                    return { success: false, error: "Payment cancelled" };
+                }
+                
+                // Simulate processing time
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Simulate 95% success rate
+                const isSuccess = Math.random() > 0.05;
+                
+                return {
+                    success: isSuccess,
+                    transaction_id: isSuccess ? `TXN${Date.now()}` : null,
+                    method: paymentMethods[parseInt(selectedMethod) - 1],
+                    error: isSuccess ? null : "Payment processing failed"
+                };
+            };
+
+            const handlePostJob = async () => {
+                if (!jobForm.title || !jobForm.skills || !jobForm.schedule || 
+                    !jobForm.location || !jobForm.salary || !jobForm.description || !jobForm.jobType) {
+                    alert("Please fill in all required fields");
+                    return;
+                }
+
+                // Show payment confirmation
+                const confirmPayment = confirm(
+                    `You are about to post a job for KSh 300.\n\n` +
+                    `Job: ${jobForm.title}\n` +
+                    `Type: ${jobForm.jobType}\n` +
+                    `Location: ${jobForm.location}\n\n` +
+                    `Click OK to proceed to payment.`
+                );
+
+                if (!confirmPayment) {
+                    return;
+                }
+
+                try {
+                    // In a real app, integrate with M-Pesa API or payment gateway
+                    // For now, we'll simulate the payment process
+                    
+                    const jobData = {
+                        employer_id: currentUser?.id,
+                        title: jobForm.title,
+                        description: jobForm.description,
+                        skills_required: jobForm.skills,
+                        work_schedule: jobForm.schedule,
+                        location: jobForm.location,
+                        salary_range: jobForm.salary,
+                        job_type: jobForm.jobType,
+                        commission_amount: 300.00,
+                        payment_status: 'pending'
+                    };
+                    
+                    // Simulate payment processing
+                    const paymentResult = await simulatePayment();
+                    
+                    if (paymentResult.success) {
+                        jobData.payment_status = 'completed';
+                        
+                        await ApiService.createJob(jobData);
+                        
+                        // Reload jobs
+                        const updatedJobs = await ApiService.getJobs();
+                        setJobs(updatedJobs);
+                        
+                        setJobForm({
+                            title: "",
+                            skills: "",
+                            schedule: "",
+                            location: "",
+                            salary: "",
+                            description: "",
+                            jobType: "",
+                        });
+                        
+                        alert("Payment successful! Your job has been posted and is now live.");
+                        setScreen("employerHome");
+                    } else {
+                        alert("Payment failed. Please try again or contact support.");
+                    }
+                } catch (error) {
+                    alert("Error posting job: " + error.message);
+                }
+            };
+
+            const handleDeleteJob = async (jobId) => {
+                if (confirm("Are you sure you want to delete this job?")) {
+                    try {
+                        await ApiService.deleteJob(jobId);
+                        
+                        // Reload jobs
+                        const updatedJobs = await ApiService.getJobs();
+                        setJobs(updatedJobs);
+                        
+                        alert("Job deleted successfully!");
+                    } catch (error) {
+                        alert(error.message);
+                    }
+                }
+            };
+
+            const handleEditJob = (job) => {
+                setSelectedJob(job);
+                setJobForm({
+                    title: job.title,
+                    skills: Array.isArray(job.skills) ? job.skills.join(', ') : job.skills,
+                    schedule: job.schedule,
+                    location: job.location,
+                    salary: job.salary,
+                    description: job.description
+                });
+                setScreen("editJob");
+            };
+
+            const handleUpdateJob = async () => {
+                if (!jobForm.title || !jobForm.skills || !jobForm.schedule || !jobForm.location || !jobForm.salary || !jobForm.description) {
+                    alert("Please fill in all required fields");
+                    return;
+                }
+
+                try {
+                    const jobData = {
+                        title: jobForm.title,
+                        description: jobForm.description,
+                        skills_required: jobForm.skills,
+                        work_schedule: jobForm.schedule,
+                        location: jobForm.location,
+                        salary_range: jobForm.salary
+                    };
+                    
+                    await ApiService.updateJob(selectedJob.id, jobData);
+                    
+                    // Reload jobs
+                    const updatedJobs = await ApiService.getJobs();
+                    setJobs(updatedJobs);
+                    
+                    setSelectedJob(null);
+                    setJobForm({
+                        title: "",
+                        skills: "",
+                        schedule: "",
+                        location: "",
+                        salary: "",
+                        description: "",
+                        jobType: ""
+                    });
+                    
+                    alert("Job updated successfully!");
+                    setScreen("jobs");
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
+            const handleUpdateWorkerProfile = async () => {
+                if (!workerProfile.skills || !workerProfile.experience || !workerProfile.availability || !workerProfile.hourlyRate) {
+                    alert("Please fill in all required fields");
+                    return;
+                }
+
+                try {
+                    const profileData = {
+                        skills: workerProfile.skills,
+                        experience: workerProfile.experience,
+                        availability: workerProfile.availability,
+                        service_area: workerProfile.serviceArea,
+                        hourly_rate: workerProfile.hourlyRate
+                    };
+                    
+                    await ApiService.updateWorkerProfile(currentUser.id, profileData);
+                    
+                    // Update current user data
+                    const updatedUser = {
+                        ...currentUser,
+                        worker_profile: {
+                            ...currentUser.worker_profile,
+                            ...profileData
+                        }
+                    };
+                    setCurrentUser(updatedUser);
+                    
+                    alert("Profile updated successfully!");
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
+            // FIXED: Apply to Job function
+            const handleApplyToJob = async (job) => {
+                try {
+                    const applicationData = {
+                        job_id: job.id,
+                        worker_id: currentUser?.id,
+                        employer_id: job.employer_id,
+                        cover_letter: `Hi, I'm interested in applying for your ${job.title} position. I have experience in ${currentUser?.worker_profile?.skills} and would love to discuss this opportunity with you.`
+                    };
+                    
+                    await ApiService.applyToJob(applicationData);
+                    
+                    // Reload applications
+                    const updatedApplications = await ApiService.getWorkerApplications(currentUser.id);
+                    setApplications(updatedApplications);
+                    
+                    // Create a conversation between worker and employer
+                    const conversationData = {
+                        participant_1_id: currentUser?.id,
+                        participant_2_id: job.employer_id,
+                        job_id: job.id,
+                        initial_message: `Hi, I'm interested in applying for your ${job.title} position. I have experience in ${currentUser?.worker_profile?.skills} and would love to discuss this opportunity with you.`
+                    };
+                    
+                    await ApiService.createConversation(conversationData);
+                    
+                    // Reload conversations
+                    const updatedConversations = await ApiService.getConversations(currentUser.id);
+                    setConversations(updatedConversations);
+                    
+                    alert("Application submitted successfully! A conversation has been started with the employer.");
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
+            // FIXED: Contact Worker function
+            const handleContactWorker = async (worker) => {
+                try {
+                    const conversationData = {
+                        participant_1_id: currentUser?.id,
+                        participant_2_id: worker.id,
+                        initial_message: `Hi ${worker.name}, I'm interested in your services. Could we discuss a potential opportunity?`
+                    };
+                    
+                    const conversation = await ApiService.createConversation(conversationData);
+                    
+                    // Reload conversations
+                    const updatedConversations = await ApiService.getConversations(currentUser.id);
+                    setConversations(updatedConversations);
+                    
+                    // Find the conversation we just created and open it
+                    const newConvo = updatedConversations.find(c => 
+                        (c.participant_1_id === currentUser.id && c.participant_2_id === worker.id) ||
+                        (c.participant_1_id === worker.id && c.participant_2_id === currentUser.id)
+                    );
+                    
+                    if (newConvo) {
+                        // Load messages for this conversation
+                        const messages = await ApiService.getMessages(newConvo.id);
+                        setSelectedConversation({...newConvo, other_user_name: worker.name});
+                        setMessages(messages);
+                        setScreen("chatDetail");
+                    }
+                } catch (error) {
+                    alert(error.message);
+                }
+            };
+
+            const getHomeScreen = () => {
+                return userType === "employer" ? "employerHome" : "workerHome";
+            };
+
+            const getProfileScreen = () => {
+                return userType === "employer" ? "employerProfile" : "workerProfile";
+            };
+
+            // Get workers for display (from users who are workers)
+            const getWorkers = () => {
+                return users.filter(user => user.user_type === "worker" && user.is_active);
+            };
+
+            // Get user's jobs (for employers)
+            const getUserJobs = () => {
+                return jobs.filter(job => job.employer_id === currentUser?.id);
+            };
+
+            // Get user's applications (for workers)
+            const getUserApplications = () => {
+                return applications;
+            };
+
+            // Landing Screen
+            if (screen === "landing") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col items-center justify-center p-4 h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+                            <div className="text-center">
+                                <h1 className="text-4xl font-bold text-blue-600 mb-4">Domestic Workers App</h1>
+                                <p className="text-gray-600 mb-8 text-lg">Connect domestic workers with employers</p>
+
+                                <div className="space-y-4 w-full max-w-xs">
+                                    <button
+                                        className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-lg"
+                                        onClick={() => setScreen("createEmployerAccount")}
+                                    >
+                                        Create Account as Employer
+                                    </button>
+
+                                    <button
+                                        className="w-full py-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-lg"
+                                        onClick={() => setScreen("createWorkerAccount")}
+                                    >
+                                        Create Account as Domestic Worker
+                                    </button>
+
+                                    <div className="mt-6 pt-4 border-t border-gray-300">
+                                        <p className="text-gray-600 text-sm mb-3">Already have an account?</p>
+                                        <div className="space-y-2">
+                                            <button
+                                                className="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+                                                onClick={() => setScreen("employerLogin")}
+                                            >
+                                                Login as Employer
+                                            </button>
+                                            <button
+                                                className="w-full py-3 bg-white border-2 border-green-600 text-green-600 rounded-lg font-medium hover:bg-green-50 transition-colors"
+                                                onClick={() => setScreen("workerLogin")}
+                                            >
+                                                Login as Domestic Worker
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Create Employer Account Screen
+            if (screen === "createEmployerAccount") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("landing")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Create Employer Account</h1>
+                            </div>
+
+                            <div className="p-4 overflow-y-auto">
+                                <div className="text-center mb-6">
+                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <UserIcon />
+                                    </div>
+                                    <h2 className="text-lg font-bold text-gray-800">Join as an Employer</h2>
+                                    <p className="text-gray-600 text-sm">Find reliable household help for your family</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Full Name *</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            placeholder="Enter your full name"
+                                            value={registrationForm.name}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Email Address *</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            placeholder="Enter your email"
+                                            value={registrationForm.email}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Phone Number *</label>
+                                        <input
+                                            type="tel"
+                                            name="phone"
+                                            placeholder="+254 712 345 678"
+                                            value={registrationForm.phone}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Location *</label>
+                                        <input
+                                            type="text"
+                                            name="location"
+                                            placeholder="City, Area (e.g., Westlands, Nairobi)"
+                                            value={registrationForm.location}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Password *</label>
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            placeholder="Create a secure password (min 6 characters)"
+                                            value={registrationForm.password}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Confirm Password *</label>
+                                        <input
+                                            type="password"
+                                            name="confirmPassword"
+                                            placeholder="Confirm your password"
+                                            value={registrationForm.confirmPassword}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">About Your Household (Optional)</label>
+                                        <textarea
+                                            name="about"
+                                            placeholder="Tell us about your family and what kind of help you're looking for..."
+                                            value={registrationForm.about}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <button
+                                        className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium mt-6 hover:bg-blue-700 transition-colors"
+                                        onClick={() => handleRegistration("employer")}
+                                    >
+                                        Create Employer Account
+                                    </button>
+
+                                    <div className="text-center mt-4">
+                                        <p className="text-gray-600 text-sm">
+                                            Already have an account?
+                                            <button
+                                                className="text-blue-600 ml-1 font-medium"
+                                                onClick={() => setScreen("employerLogin")}
+                                            >
+                                                Login here
+                                            </button>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Create Worker Account Screen
+            if (screen === "createWorkerAccount") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-green-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("landing")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Create Worker Account</h1>
+                            </div>
+
+                            <div className="p-4 overflow-y-auto">
+                                <div className="text-center mb-6">
+                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <UserIcon />
+                                    </div>
+                                    <h2 className="text-lg font-bold text-gray-800">Join as a Domestic Worker</h2>
+                                    <p className="text-gray-600 text-sm">Connect with families who need your skills</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    {/* Profile Photo Upload */}
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Profile Photo *</label>
+                                        <div className="flex items-center space-x-4">
+                                            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
+                                                {registrationForm.profilePhoto ? (
+                                                    <img 
+                                                        src={registrationForm.profilePhoto} 
+                                                        alt="Profile" 
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <UserIcon />
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handlePhotoUpload}
+                                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                    required
+                                                />
+                                                <p className="text-xs text-gray-500 mt-1">Upload a clear photo of yourself</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Full Name *</label>
+                                        <input
+                                            type="text"
+                                            name="name"
+                                            placeholder="Enter your full name"
+                                            value={registrationForm.name}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Age *</label>
+                                        <input
+                                            type="number"
+                                            name="age"
+                                            placeholder="Enter your age"
+                                            min="18"
+                                            max="70"
+                                            value={registrationForm.age}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Email Address *</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            placeholder="Enter your email"
+                                            value={registrationForm.email}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Phone Number *</label>
+                                        <input
+                                            type="tel"
+                                            name="phone"
+                                            placeholder="+254 712 345 678"
+                                            value={registrationForm.phone}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Location *</label>
+                                        <input
+                                            type="text"
+                                            name="location"
+                                            placeholder="City, Area (e.g., Kiambu, Nairobi)"
+                                            value={registrationForm.location}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Job Type Preference *</label>
+                                        <select
+                                            name="jobType"
+                                            value={registrationForm.jobType}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        >
+                                            <option value="">Select job type preference</option>
+                                            <option value="permanent">Permanent Position</option>
+                                            <option value="daily">Daily/Casual Work</option>
+                                            <option value="both">Both Permanent & Daily</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Skills *</label>
+                                        <input
+                                            type="text"
+                                            name="skills"
+                                            placeholder="e.g., Cleaning, Cooking, Childcare, Gardening"
+                                            value={registrationForm.skills}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Experience *</label>
+                                        <input
+                                            type="text"
+                                            name="experience"
+                                            placeholder="e.g., 5 years as housekeeper"
+                                            value={registrationForm.experience}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Availability *</label>
+                                        <input
+                                            type="text"
+                                            name="availability"
+                                            placeholder="e.g., Mon-Fri, 8AM-5PM"
+                                            value={registrationForm.availability}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Expected Monthly Salary *</label>
+                                        <input
+                                            type="text"
+                                            name="monthlySalary"
+                                            placeholder="e.g., KSh 25,000 - 35,000"
+                                            value={registrationForm.monthlySalary}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Password *</label>
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            placeholder="Create a secure password (min 6 characters)"
+                                            value={registrationForm.password}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Confirm Password *</label>
+                                        <input
+                                            type="password"
+                                            name="confirmPassword"
+                                            placeholder="Confirm your password"
+                                            value={registrationForm.confirmPassword}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                            required
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">About Yourself (Optional)</label>
+                                        <textarea
+                                            name="about"
+                                            placeholder="Tell families about your experience, work style, and what makes you special..."
+                                            value={registrationForm.about}
+                                            onChange={handleRegistrationFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <button
+                                        className="w-full py-4 bg-green-600 text-white rounded-lg font-medium mt-6 hover:bg-green-700 transition-colors"
+                                        onClick={() => handleRegistration("worker")}
+                                    >
+                                        Create Worker Account
+                                    </button>
+
+                                    <div className="text-center mt-4">
+                                        <p className="text-gray-600 text-sm">
+                                            Already have an account?
+                                            <button
+                                                className="text-green-600 ml-1 font-medium"
+                                                onClick={() => setScreen("workerLogin")}
+                                            >
+                                                Login here
+                                            </button>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Employer Login Screen
+            if (screen === "employerLogin") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("landing")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Employer Login</h1>
+                            </div>
+
+                            <div className="flex flex-col items-center justify-center flex-1 p-4">
+                                <div className="w-full max-w-sm">
+                                    <div className="text-center mb-8">
+                                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <UserIcon />
+                                        </div>
+                                        <h2 className="text-2xl font-bold text-gray-800">Welcome Back!</h2>
+                                        <p className="text-gray-600 text-sm mt-2">Sign in to your employer account</p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-gray-700 font-medium mb-2">Email Address</label>
+                                            <input
+                                                type="email"
+                                                placeholder="Enter your email"
+                                                value={loginCredentials.email}
+                                                onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
+                                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-gray-700 font-medium mb-2">Password</label>
+                                            <input
+                                                type="password"
+                                                placeholder="Enter your password"
+                                                value={loginCredentials.password}
+                                                onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
+                                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+                                            />
+                                        </div>
+
+                                        <button
+                                            className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                            onClick={handleLogin}
+                                        >
+                                            Sign In
+                                        </button>
+
+                                        <div className="text-center mt-4">
+                                            <p className="text-gray-600 text-sm">
+                                                Don't have an account?
+                                                <button
+                                                    className="text-blue-600 ml-1 font-medium"
+                                                    onClick={() => setScreen("createEmployerAccount")}
+                                                >
+                                                    Sign up here
+                                                </button>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Worker Login Screen
+            if (screen === "workerLogin") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-green-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("landing")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Worker Login</h1>
+                            </div>
+
+                            <div className="flex flex-col items-center justify-center flex-1 p-4">
+                                <div className="w-full max-w-sm">
+                                    <div className="text-center mb-8">
+                                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <UserIcon />
+                                        </div>
+                                        <h2 className="text-2xl font-bold text-gray-800">Welcome Back!</h2>
+                                        <p className="text-gray-600 text-sm mt-2">Sign in to your worker account</p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-gray-700 font-medium mb-2">Email Address</label>
+                                            <input
+                                                type="email"
+                                                placeholder="Enter your email"
+                                                value={loginCredentials.email}
+                                                onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})}
+                                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-gray-700 font-medium mb-2">Password</label>
+                                            <input
+                                                type="password"
+                                                placeholder="Enter your password"
+                                                value={loginCredentials.password}
+                                                onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})}
+                                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+                                            />
+                                        </div>
+
+                                        <button
+                                            className="w-full py-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                                            onClick={handleLogin}
+                                        >
+                                            Sign In
+                                        </button>
+
+                                        <div className="text-center mt-4">
+                                            <p className="text-gray-600 text-sm">
+                                                Don't have an account?
+                                                <button
+                                                    className="text-green-600 ml-1 font-medium"
+                                                    onClick={() => setScreen("createWorkerAccount")}
+                                                >
+                                                    Sign up here
+                                                </button>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Employer Home Screen
+            if (screen === "employerHome") {
+                const workers = getWorkers();
+                
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white">
+                                <h1 className="text-xl font-bold text-center">Domestic Workers App</h1>
+                            </div>
+
+                            <div className="m-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                                <h2 className="text-lg font-bold text-gray-800">Welcome, {currentUser?.name || "User"}!</h2>
+                                <p className="text-gray-600">Employer Dashboard</p>
+                            </div>
+
+                            <div className="m-4">
+                                <h3 className="text-lg font-bold text-gray-800 mb-3">Quick Actions</h3>
+                                <div className="flex justify-between">
+                                    <div
+                                        className="w-40 h-28 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                                        onClick={() => setScreen("postJob")}
+                                    >
+                                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mb-2">
+                                            <PlusIcon />
+                                        </div>
+                                        <span className="text-gray-800 font-medium">Post Job</span>
+                                    </div>
+
+                                    <div className="w-40 h-28 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
+                                        onClick={() => setScreen("viewWorkers")}
+                                    >
+                                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mb-2">
+                                            <UserIcon />
+                                        </div>
+                                        <span className="text-gray-800 font-medium">View Workers</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="m-4 pb-20">
+                                <h3 className="text-lg font-bold text-gray-800 mb-3">Available Workers ({workers.length})</h3>
+                                {workers.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {workers.slice(0, 3).map(worker => (
+                                            <div key={worker.id} className="p-4 bg-white rounded-lg shadow-sm flex items-center hover:shadow-md transition-shadow">
+                                                <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                                                    <UserIcon />
+                                                </div>
+                                                <div className="ml-4 flex-1">
+                                                    <h4 className="font-bold text-gray-800">{worker.name}</h4>
+                                                    <p className="text-gray-600 text-sm">{worker.skills}</p>
+                                                    <p className="text-gray-700 font-medium text-sm">{worker.hourlyRate}</p>
+                                                </div>
+                                                <button
+                                                    className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                                                    onClick={() => selectWorker(worker)}
+                                                >
+                                                    View
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {workers.length > 3 && (
+                                            <button
+                                                className="w-full py-3 bg-blue-50 text-blue-600 rounded-lg font-medium hover:bg-blue-100 transition-colors"
+                                                onClick={() => setScreen("viewWorkers")}
+                                            >
+                                                View All {workers.length} Workers
+                                            </button>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 bg-white rounded-lg">
+                                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <UserIcon />
+                                        </div>
+                                        <h4 className="text-lg font-bold text-gray-800 mb-2">No Workers Available</h4>
+                                        <p className="text-gray-600">Workers will appear here once they create profiles.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200">
+                                <div className="flex justify-around items-center p-2">
+                                    <div className="flex flex-col items-center">
+                                        <HomeIcon />
+                                        <span className="text-blue-600 text-xs">Home</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("jobs")}>
+                                        <BriefcaseIcon />
+                                        <span className="text-gray-500 text-xs">Jobs</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("messages")}>
+                                        <MessageIcon />
+                                        <span className="text-gray-500 text-xs">Messages</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("employerProfile")}>
+                                        <UserIcon />
+                                        <span className="text-gray-500 text-xs">Profile</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Worker Home Screen
+            if (screen === "workerHome") {
+                const userApps = getUserApplications();
+                
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-green-600 p-4 text-white">
+                                <h1 className="text-xl font-bold text-center">Worker Dashboard</h1>
+                            </div>
+
+                            <div className="flex flex-col items-center mt-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                                    <UserIcon />
+                                </div>
+                                <h2 className="font-bold text-gray-800 mt-2 text-xl">{currentUser?.name || "Worker"}</h2>
+                                <div className="px-3 py-1 bg-green-500 text-white text-xs rounded-full mt-2">
+                                    {currentUser?.isActive ? "Available" : "Not Available"}
+                                </div>
+                            </div>
+
+                            <div className="p-4 mt-4 pb-20 overflow-y-auto">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Summary</h3>
+
+                                <div className="space-y-4">
+                                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                                        <h4 className="font-bold text-gray-800">Available Jobs</h4>
+                                        <p className="text-gray-600">{jobs.length}</p>
+                                    </div>
+
+                                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                                        <h4 className="font-bold text-gray-800">My Applications</h4>
+                                        <p className="text-gray-600">{userApps.length}</p>
+                                    </div>
+
+                                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                                        <h4 className="font-bold text-gray-800">Messages</h4>
+                                        <p className="text-gray-600">{conversations.filter(c => c.unread).length} Unread</p>
+                                    </div>
+
+                                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                                        <h4 className="font-bold text-gray-800">Your Rate</h4>
+                                        <p className="text-gray-600">{currentUser?.hourlyRate || "Not set"}</p>
+                                    </div>
+
+                                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                                        <h4 className="font-bold text-gray-800">Your Skills</h4>
+                                        <p className="text-gray-600">{currentUser?.skills || "Not set"}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200">
+                                <div className="flex justify-around items-center p-2">
+                                    <div className="flex flex-col items-center">
+                                        <HomeIcon />
+                                        <span className="text-green-600 text-xs">Home</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("jobs")}>
+                                        <BriefcaseIcon />
+                                        <span className="text-gray-500 text-xs">Jobs</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("messages")}>
+                                        <MessageIcon />
+                                        <span className="text-gray-500 text-xs">Messages</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("workerProfile")}>
+                                        <UserIcon />
+                                        <span className="text-gray-500 text-xs">Profile</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Jobs Screen
+            if (screen === "jobs") {
+                const userJobs = getUserJobs();
+                const availableJobs = jobs.filter(job => job.employerId !== currentUser?.id);
+                const userApps = getUserApplications();
+                
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className={`${userType === "employer" ? "bg-blue-600" : "bg-green-600"} p-4 text-white`}>
+                                <h1 className="text-xl font-bold text-center">Jobs</h1>
+                            </div>
+
+                            {/* Tab Navigation */}
+                            <div className="flex bg-white border-b border-gray-200">
+                                <button
+                                    className={`flex-1 py-3 text-center font-medium ${
+                                        activeTab === "posted" 
+                                            ? `${userType === "employer" ? "text-blue-600 border-b-2 border-blue-600" : "text-green-600 border-b-2 border-green-600"}`
+                                            : "text-gray-500"
+                                    }`}
+                                    onClick={() => setActiveTab("posted")}
+                                >
+                                    {userType === "employer" ? "My Posted Jobs" : "Available Jobs"}
+                                </button>
+                                <button
+                                    className={`flex-1 py-3 text-center font-medium ${
+                                        activeTab === "applied" 
+                                            ? `${userType === "employer" ? "text-blue-600 border-b-2 border-blue-600" : "text-green-600 border-b-2 border-green-600"}`
+                                            : "text-gray-500"
+                                    }`}
+                                    onClick={() => setActiveTab("applied")}
+                                >
+                                    {userType === "employer" ? "Applications" : "Applied Jobs"}
+                                </button>
+                            </div>
+
+                            {/* Jobs List */}
+                            <div className="flex-1 overflow-y-auto p-4 pb-20">
+                                {activeTab === "posted" && (
+                                    <div className="space-y-4">
+                                        {(userType === "employer" ? userJobs : availableJobs).length > 0 ? (
+                                            (userType === "employer" ? userJobs : availableJobs).map(job => (
+                                                <div key={job.id} className="bg-white rounded-lg p-4 shadow-sm">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h3 className="font-bold text-gray-800">{job.title}</h3>
+                                                        <span className="text-xs text-gray-500">{job.posted}</span>
+                                                    </div>
+                                                    <p className="text-gray-600 text-sm mb-2">{job.description}</p>
+                                                    <div className="space-y-1 text-sm">
+                                                        <p><span className="font-medium text-gray-700">Skills:</span> {Array.isArray(job.skills) ? job.skills.join(", ") : job.skills}</p>
+                                                        <p><span className="font-medium text-gray-700">Schedule:</span> {job.schedule}</p>
+                                                        <p><span className="font-medium text-gray-700">Location:</span> {job.location}</p>
+                                                        <p><span className="font-medium text-gray-700">Salary:</span> {job.salary}</p>
+                                                        {userType === "worker" && (
+                                                            <p><span className="font-medium text-gray-700">Employer:</span> {job.employer}</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex mt-3 space-x-2">
+                                                        {userType === "employer" ? (
+                                                            <>
+                                                                <button 
+                                                                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                                                                    onClick={() => handleEditJob(job)}
+                                                                >
+                                                                    <EditIcon />
+                                                                    <span className="ml-1">Edit</span>
+                                                                </button>
+                                                                <button 
+                                                                    className="px-3 py-1 border border-red-600 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors flex items-center"
+                                                                    onClick={() => handleDeleteJob(job.id)}
+                                                                >
+                                                                    <DeleteIcon />
+                                                                    <span className="ml-1">Delete</span>
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <button 
+                                                                    className="px-3 py-1 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                                                                    onClick={() => handleApplyToJob(job)}
+                                                                >
+                                                                    Apply
+                                                                </button>
+                                                                <button className="px-3 py-1 border border-green-600 text-green-600 text-sm rounded-lg hover:bg-green-50 transition-colors">
+                                                                    Save
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-8">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                    <BriefcaseIcon />
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-800 mb-2">
+                                                    {userType === "employer" ? "No Jobs Posted Yet" : "No Jobs Available"}
+                                                </h3>
+                                                <p className="text-gray-600">
+                                                    {userType === "employer" 
+                                                        ? "Start by posting your first job to find workers." 
+                                                        : "Jobs posted by employers will appear here."}
+                                                </p>
+                                                {userType === "employer" && (
+                                                    <button
+                                                        className="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                                        onClick={() => setScreen("postJob")}
+                                                    >
+                                                        Post Your First Job
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {activeTab === "applied" && (
+                                    <div className="space-y-4">
+                                        {userType === "worker" && userApps.length > 0 ? (
+                                            userApps.map(app => (
+                                                <div key={app.id} className="bg-white rounded-lg p-4 shadow-sm">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h3 className="font-bold text-gray-800">{app.jobTitle}</h3>
+                                                        <span className={`px-2 py-1 text-xs rounded-full ${
+                                                            app.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                            app.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                                            'bg-red-100 text-red-800'
+                                                        }`}>
+                                                            {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-gray-600 text-sm mb-2">Employer: {app.employerName}</p>
+                                                    <p className="text-gray-500 text-xs">Applied: {new Date(app.appliedAt).toLocaleDateString()}</p>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-8">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                    <BriefcaseIcon />
+                                                </div>
+                                                <h3 className="text-lg font-bold text-gray-800 mb-2">
+                                                    {userType === "employer" ? "No Applications Yet" : "No Applied Jobs"}
+                                                </h3>
+                                                <p className="text-gray-600">
+                                                    {userType === "employer" 
+                                                        ? "Applications will appear here once workers apply to your jobs." 
+                                                        : "Jobs you apply to will appear here."}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Fixed Bottom Navigation */}
+                            <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200">
+                                <div className="flex justify-around items-center p-2">
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen(getHomeScreen())}>
+                                        <HomeIcon />
+                                        <span className="text-gray-500 text-xs">Home</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <BriefcaseIcon />
+                                        <span className={`${userType === "employer" ? "text-blue-600" : "text-green-600"} text-xs`}>Jobs</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("messages")}>
+                                        <MessageIcon />
+                                        <span className="text-gray-500 text-xs">Messages</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen(getProfileScreen())}>
+                                        <UserIcon />
+                                        <span className="text-gray-500 text-xs">Profile</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Messages Screen
+            if (screen === "messages") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className={`${userType === "employer" ? "bg-blue-600" : "bg-green-600"} p-4 text-white`}>
+                                <h1 className="text-xl font-bold text-center">Messages</h1>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto pb-20">
+                                {conversations.length > 0 ? (
+                                    conversations.map(conversation => (
+                                        <div
+                                            key={conversation.id}
+                                            className="p-4 border-b border-gray-200 bg-white hover:bg-gray-50 cursor-pointer"
+                                            onClick={() => selectConversation(conversation)}
+                                        >
+                                            <div className="flex items-center">
+                                                <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                                                    <UserIcon />
+                                                </div>
+                                                <div className="ml-4 flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <h3 className="font-bold text-gray-800">{conversation.name}</h3>
+                                                        <span className="text-xs text-gray-500">{conversation.time}</span>
+                                                    </div>
+                                                    <p className={`text-sm ${conversation.unread ? "font-medium text-gray-800" : "text-gray-600"}`}>
+                                                        {conversation.lastMessage}
+                                                    </p>
+                                                </div>
+                                                {conversation.unread && (
+                                                    <div className={`w-3 h-3 ${userType === "employer" ? "bg-blue-600" : "bg-green-600"} rounded-full`}></div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <MessageIcon />
+                                        </div>
+                                        <h3 className="text-lg font-bold text-gray-800 mb-2">No Messages Yet</h3>
+                                        <p className="text-gray-600">Your conversations will appear here.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Fixed Bottom Navigation */}
+                            <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white border-t border-gray-200">
+                                <div className="flex justify-around items-center p-2">
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen(getHomeScreen())}>
+                                        <HomeIcon />
+                                        <span className="text-gray-500 text-xs">Home</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen("jobs")}>
+                                        <BriefcaseIcon />
+                                        <span className="text-gray-500 text-xs">Jobs</span>
+                                    </div>  
+                                    <div className="flex flex-col items-center">
+                                        <MessageIcon />
+                                        <span className={`${userType === "employer" ? "text-blue-600" : "text-green-600"} text-xs`}>Messages</span>
+                                    </div>
+                                    <div className="flex flex-col items-center cursor-pointer" onClick={() => setScreen(getProfileScreen())}>
+                                        <UserIcon />
+                                        <span className="text-gray-500 text-xs">Profile</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Chat Detail Screen
+            if (screen === "chatDetail" && selectedConversation) {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className={`${userType === "employer" ? "bg-blue-600" : "bg-green-600"} p-4 text-white flex items-center`}>
+                                <ArrowLeftIcon onClick={() => setScreen("messages")} />
+                                <div className="ml-4 flex items-center">
+                                    <div className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center mr-3">
+                                        <UserIcon />
+                                    </div>
+                                    <h1 className="text-xl font-bold">{selectedConversation.name}</h1>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                                {messages.map(message => (
+                                    <div
+                                        key={message.id}
+                                        className={`flex ${message.sender === "me" ? "justify-end" : "justify-start"}`}
+                                    >
+                                        <div
+                                            className={`max-w-xs px-4 py-2 rounded-lg ${
+                                                message.sender === "me"
+                                                    ? `${userType === "employer" ? "bg-blue-600" : "bg-green-600"} text-white`
+                                                    : "bg-white text-gray-800 shadow-sm"
+                                            }`}
+                                        >
+                                            <p className="text-sm">{message.text}</p>
+                                            <p className={`text-xs mt-1 ${
+                                                message.sender === "me" ? "text-white text-opacity-70" : "text-gray-500"
+                                            }`}>
+                                                {message.time}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="p-4 bg-white border-t border-gray-200">
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Type a message..."
+                                        value={messageInput}
+                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                                    />
+                                    <button
+                                        onClick={sendMessage}
+                                        className={`p-3 ${userType === "employer" ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"} text-white rounded-lg transition-colors`}
+                                    >
+                                        <SendIcon />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Employer Profile Screen
+            if (screen === "employerProfile") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("employerHome")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Employer Profile</h1>
+                            </div>
+
+                            <div className="flex flex-col items-center mt-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-full flex items-center justify-center">
+                                    <UserIcon />
+                                </div>
+                                <h2 className="font-bold text-gray-800 mt-2 text-xl">{currentUser?.name || "Employer"}</h2>
+                                <div className="px-3 py-1 bg-blue-500 text-white text-xs rounded-full mt-2">
+                                    Employer
+                                </div>
+                            </div>
+
+                            <div className="p-4 mt-4 overflow-y-auto pb-20">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Account Information</h3>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Full Name</label>
+                                        <input
+                                            type="text"
+                                            defaultValue={currentUser?.name || "User Name"}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Email</label>
+                                        <input
+                                            type="email"
+                                            defaultValue={currentUser?.email || "user@email.com"}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Phone Number</label>
+                                        <input
+                                            type="tel"
+                                            defaultValue={currentUser?.phone || "+254 712 345 678"}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Location</label>
+                                        <input
+                                            type="text"
+                                            defaultValue={currentUser?.location || "Westlands, Nairobi"}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">About</label>
+                                        <textarea
+                                            defaultValue={currentUser?.about || "Looking for reliable household help for my family."}
+                                            className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <button
+                                        className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium mt-6 hover:bg-blue-700 transition-colors"
+                                        onClick={() => alert("Profile updated successfully!")}
+                                    >
+                                        Update Profile
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md p-4 bg-white">
+                                <button
+                                    className="w-full py-3 border-2 border-red-600 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors"
+                                    onClick={() => {
+                                        if (confirm("Are you sure you want to logout?")) {
+                                            handleLogout();
+                                        }
+                                    }}
+                                >
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Worker Profile Screen
+            if (screen === "workerProfile") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-green-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("workerHome")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Worker Profile</h1>
+                            </div>
+
+                            <div className="flex flex-col items-center mt-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                                    <UserIcon />
+                                </div>
+                                <h2 className="font-bold text-gray-800 mt-2 text-xl">{currentUser?.name || "Worker"}</h2>
+                                <div className="px-3 py-1 bg-green-500 text-white text-xs rounded-full mt-2">
+                                    {workerProfile.isAvailable ? "Available" : "Not Available"}
+                                </div>
+                            </div>
+
+                            <div className="p-4 mt-4 overflow-y-auto pb-20">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">My Information</h3>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Skills *</label>
+                                        <input
+                                            type="text"
+                                            name="skills"
+                                            placeholder="e.g., Cleaning, Cooking, Gardening"
+                                            value={workerProfile.skills}
+                                            onChange={handleWorkerProfileChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Experience *</label>
+                                        <input
+                                            type="text"
+                                            name="experience"
+                                            placeholder="e.g., 5 years as housekeeper"
+                                            value={workerProfile.experience}
+                                            onChange={handleWorkerProfileChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Availability *</label>
+                                        <input
+                                            type="text"
+                                            name="availability"
+                                            placeholder="e.g., Mon-Fri, 8AM-5PM"
+                                            value={workerProfile.availability}
+                                            onChange={handleWorkerProfileChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Service Area</label>
+                                        <input
+                                            type="text"
+                                            name="serviceArea"
+                                            placeholder="e.g., 10 miles from Nairobi"
+                                            value={workerProfile.serviceArea}
+                                            onChange={handleWorkerProfileChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Hourly Rate *</label>
+                                        <input
+                                            type="text"
+                                            name="hourlyRate"
+                                            placeholder="e.g., KSh 1,200/hour"
+                                            value={workerProfile.hourlyRate}
+                                            onChange={handleWorkerProfileChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div className="flex items-center mt-4">
+                                        <label className="flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                name="isAvailable"
+                                                checked={workerProfile.isAvailable}
+                                                onChange={handleWorkerProfileChange}
+                                                className="mr-3 w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                                            />
+                                            <span className="text-gray-700">I am currently available for work</span>
+                                        </label>
+                                    </div>
+
+                                    <button
+                                        className="w-full py-4 bg-green-600 text-white rounded-lg font-medium mt-6 hover:bg-green-700 transition-colors"
+                                        onClick={handleUpdateWorkerProfile}
+                                    >
+                                        Update Profile
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md p-4 bg-white">
+                                <button
+                                    className="w-full py-3 border-2 border-red-600 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors"
+                                    onClick={() => {
+                                        if (confirm("Are you sure you want to logout?")) {
+                                            handleLogout();
+                                        }
+                                    }}
+                                >
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Post Job Screen
+            if (screen === "postJob") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("employerHome")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Post a Job</h1>
+                            </div>
+
+                            <div className="p-4 overflow-y-auto">
+                                {/* Payment Notice */}
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                                    <h3 className="font-bold text-blue-800 mb-2">💳 Job Posting Fee</h3>
+                                    <p className="text-blue-700 text-sm mb-2">
+                                        To ensure quality job postings and connect you with serious candidates, we charge a one-time fee of <strong>KSh 300</strong> per job posting.
+                                    </p>
+                                    <div className="flex items-center text-blue-700 text-sm">
+                                        <span className="mr-2">✓</span> Unlimited applications
+                                    </div>
+                                    <div className="flex items-center text-blue-700 text-sm">
+                                        <span className="mr-2">✓</span> Direct messaging with workers
+                                    </div>
+                                    <div className="flex items-center text-blue-700 text-sm">
+                                        <span className="mr-2">✓</span> Priority job listing
+                                    </div>
+                                </div>
+
+                                <h2 className="text-lg font-bold text-gray-800 mb-4">Job Details</h2>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Job Title</label>
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            placeholder="e.g., Housekeeper Needed"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.title}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Job Type</label>
+                                        <select
+                                            name="jobType"
+                                            value={jobForm.jobType}
+                                            onChange={handleJobFormChange}
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            required
+                                        >
+                                            <option value="">Select job type</option>
+                                            <option value="permanent">Permanent Position</option>
+                                            <option value="daily">Daily/Casual Work</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Required Skills</label>
+                                        <input
+                                            type="text"
+                                            name="skills"
+                                            placeholder="e.g., Cleaning, Cooking"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.skills}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Work Schedule</label>
+                                        <input
+                                            type="text"
+                                            name="schedule"
+                                            placeholder="e.g., Mon-Fri, 9AM-5PM"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.schedule}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Location</label>
+                                        <input
+                                            type="text"
+                                            name="location"
+                                            placeholder="Address"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.location}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">
+                                            {jobForm.jobType === 'daily' ? 'Daily Rate' : 'Monthly Salary'}
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="salary"
+                                            placeholder={
+                                                jobForm.jobType === 'daily' 
+                                                    ? "e.g., KSh 1,500/day" 
+                                                    : "e.g., KSh 25,000 - 35,000/month"
+                                            }
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.salary}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Job Description</label>
+                                        <textarea
+                                            name="description"
+                                            placeholder="Describe job duties and requirements"
+                                            className="w-full p-3 border border-gray-300 rounded-lg h-32 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.description}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    {/* Payment Summary */}
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <h3 className="font-bold text-gray-800 mb-2">Payment Summary</h3>
+                                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                                            <span>Job posting fee:</span>
+                                            <span>KSh 300</span>
+                                        </div>
+                                        <div className="flex justify-between font-bold text-gray-800 border-t pt-2">
+                                            <span>Total:</span>
+                                            <span>KSh 300</span>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium mt-6 hover:bg-blue-700 transition-colors"
+                                        onClick={handlePostJob}
+                                    >
+                                        Post Job & Pay KSh 300
+                                    </button>
+
+                                    <p className="text-center text-xs text-gray-500 mt-2">
+                                        Secure payment processed via M-Pesa or Card
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Edit Job Screen
+            if (screen === "editJob" && selectedJob) {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("jobs")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Edit Job</h1>
+                            </div>
+
+                            <div className="p-4 overflow-y-auto">
+                                <h2 className="text-lg font-bold text-gray-800 mb-4">Update Job Details</h2>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Job Title</label>
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            placeholder="e.g., Housekeeper Needed"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.title}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Required Skills</label>
+                                        <input
+                                            type="text"
+                                            name="skills"
+                                            placeholder="e.g., Cleaning, Cooking"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.skills}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Work Schedule</label>
+                                        <input
+                                            type="text"
+                                            name="schedule"
+                                            placeholder="e.g., Mon-Fri, 9AM-5PM"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.schedule}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Location</label>
+                                        <input
+                                            type="text"
+                                            name="location"
+                                            placeholder="Address"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.location}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Salary Range</label>
+                                        <input
+                                            type="text"
+                                            name="salary"
+                                            placeholder="e.g., KSh 800-1,200/hour"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.salary}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-gray-700 font-medium mb-2">Job Description</label>
+                                        <textarea
+                                            name="description"
+                                            placeholder="Describe job duties and requirements"
+                                            className="w-full p-3 border border-gray-300 rounded-lg h-32 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            value={jobForm.description}
+                                            onChange={handleJobFormChange}
+                                        />
+                                    </div>
+
+                                    <div className="flex space-x-3">
+                                        <button
+                                            className="flex-1 py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                            onClick={handleUpdateJob}
+                                        >
+                                            Update Job
+                                        </button>
+                                        <button
+                                            className="flex-1 py-4 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                                            onClick={() => setScreen("jobs")}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // View Workers Screen
+            if (screen === "viewWorkers") {
+                const workers = getWorkers();
+                
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("employerHome")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Available Workers</h1>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto px-4 pt-4">
+                                <h3 className="text-lg font-bold text-gray-800 mb-3">
+                                    All Workers ({workers.length})
+                                </h3>
+
+                                <div className="space-y-4 pb-4">
+                                    {workers.length > 0 ? workers.map(worker => (
+                                        <div key={worker.id} className="p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-start">
+                                                <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                                                    <UserIcon />
+                                                </div>
+                                                <div className="ml-4 flex-1">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <h4 className="font-bold text-gray-800">{worker.name}</h4>
+                                                            <p className="text-gray-600 text-sm">{worker.location}</p>
+                                                        </div>
+                                                        <div className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                                            {worker.isActive ? "Available" : "Not Available"}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-gray-600 text-sm mt-1">Skills: {worker.skills}</p>
+                                                    <p className="text-gray-600 text-sm">{worker.experience}</p>
+                                                    <p className="text-gray-600 text-sm">{worker.availability}</p>
+                                                    <p className="text-gray-700 font-medium mt-1">{worker.hourlyRate}</p>
+
+                                                    <div className="flex mt-3 space-x-2">
+                                                        <button
+                                                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                                                            onClick={() => selectWorker(worker)}
+                                                        >
+                                                            View Profile
+                                                        </button>
+                                                        <button
+                                                            className="px-3 py-1 border border-blue-600 text-blue-600 text-sm rounded-lg hover:bg-blue-50 transition-colors"
+                                                            onClick={() => handleContactWorker(worker)}
+                                                        >
+                                                            Message
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )) : (
+                                        <div className="text-center py-8">
+                                            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                <UserIcon />
+                                            </div>
+                                            <h4 className="text-lg font-bold text-gray-800 mb-2">No Workers Available</h4>
+                                            <p className="text-gray-600">Workers will appear here once they create profiles.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Worker Detail Screen
+            if (screen === "workerDetail" && selectedWorker) {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("viewWorkers")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Worker Profile</h1>
+                            </div>
+
+                            <div className="flex flex-col items-center mt-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center">
+                                    <UserIcon />
+                                </div>
+                                <h2 className="font-bold text-gray-800 mt-2 text-xl">{selectedWorker.name}</h2>
+                                <p className="text-gray-600 mt-1">{selectedWorker.location}</p>
+                                <div className="px-3 py-1 bg-green-500 text-white text-xs rounded-full mt-2">
+                                    {selectedWorker.isActive ? "Available" : "Not Available"}
+                                </div>
+                            </div>
+
+                            <div className="p-4 mt-4 space-y-3 overflow-y-auto">
+                                <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h3 className="font-bold text-gray-800 mb-2">Skills</h3>
+                                    <p className="text-gray-600">{selectedWorker.skills}</p>
+                                </div>
+
+                                <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h3 className="font-bold text-gray-800 mb-2">Experience</h3>
+                                    <p className="text-gray-600">{selectedWorker.experience}</p>
+                                </div>
+
+                                <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h3 className="font-bold text-gray-800 mb-2">Availability</h3>
+                                    <p className="text-gray-600">{selectedWorker.availability}</p>
+                                </div>
+
+                                <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h3 className="font-bold text-gray-800 mb-2">Service Area</h3>
+                                    <p className="text-gray-600">{selectedWorker.serviceArea || selectedWorker.location}</p>
+                                </div>
+
+                                <div className="bg-white rounded-lg p-4 shadow-sm">
+                                    <h3 className="font-bold text-gray-800 mb-2">Hourly Rate</h3>
+                                    <p className="text-gray-600">{selectedWorker.hourlyRate}</p>
+                                </div>
+
+                                {selectedWorker.about && (
+                                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                                        <h3 className="font-bold text-gray-800 mb-2">About</h3>
+                                        <p className="text-gray-600">{selectedWorker.about}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 mt-auto space-y-3">
+                                <button
+                                    className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                    onClick={() => handleContactWorker(selectedWorker)}
+                                >
+                                    Contact {selectedWorker.name}
+                                </button>
+                                <button className="w-full py-4 bg-white border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors">
+                                    Schedule Interview
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Default: Landing screen
+            return (
+                <div className="mobile-container">
+                    <div className="flex flex-col items-center justify-center p-4 h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+                        <div className="text-center">
+                            <h1 className="text-4xl font-bold text-blue-600 mb-4">Domestic Workers App</h1>
+                            <p className="text-gray-600 mb-8 text-lg">Connect domestic workers with employers</p>
+
+                            <div className="space-y-4 w-full max-w-xs">
+                                <button
+                                    className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-lg"
+                                    onClick={() => setScreen("createEmployerAccount")}
+                                >
+                                    Create Account as Employer
+                                </button>
+
+                                <button
+                                    className="w-full py-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors shadow-lg"
+                                    onClick={() => setScreen("createWorkerAccount")}
+                                >
+                                    Create Account as Domestic Worker
+                                </button>
+
+                                <div className="mt-6 pt-4 border-t border-gray-300">
+                                    <p className="text-gray-600 text-sm mb-3">Already have an account?</p>
+                                    <div className="space-y-2">
+                                        <button
+                                            className="w-full py-3 bg-white border-2 border-blue-600 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition-colors"
+                                            onClick={() => setScreen("employerLogin")}
+                                        >
+                                            Login as Employer
+                                        </button>
+                                        <button
+                                            className="w-full py-3 bg-white border-2 border-green-600 text-green-600 rounded-lg font-medium hover:bg-green-50 transition-colors"
+                                            onClick={() => setScreen("workerLogin")}
+                                        >
+                                            Login as Domestic Worker
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
