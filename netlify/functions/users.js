@@ -83,7 +83,7 @@ async function registerUser(client, userData) {
     const { 
       name, email, phone, location, password, about, 
       user_type, skills, experience, availability, 
-      service_area, hourly_rate 
+      service_area, monthly_salary 
     } = userData;
 
     // Validation
@@ -120,9 +120,9 @@ async function registerUser(client, userData) {
     // Create worker profile if needed
     if (user_type === 'worker') {
       await client.query(
-        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, hourly_rate) 
+        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary) 
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [newUser.id, skills, experience, availability, service_area || location, hourly_rate]
+        [newUser.id, skills, experience, availability, service_area || location, monthly_salary]
       );
     }
 
@@ -175,7 +175,7 @@ async function loginUser(client, credentials) {
         user.experience = workerResult.rows[0].experience;
         user.availability = workerResult.rows[0].availability;
         user.serviceArea = workerResult.rows[0].service_area;
-        user.hourlyRate = workerResult.rows[0].hourly_rate;
+        user.hourlyRate = workerResult.rows[0].monthly_salary;
         user.rating = workerResult.rows[0].rating;
       }
     }
@@ -203,7 +203,7 @@ async function getWorkers(client) {
     
     const result = await client.query(`
       SELECT u.*, wp.skills, wp.experience, wp.availability, 
-             wp.service_area, wp.hourly_rate, wp.rating
+             wp.service_area, wp.monthly_salary, wp.rating
       FROM users u
       JOIN worker_profiles wp ON u.id = wp.user_id
       WHERE u.user_type = 'worker' AND u.is_active = true
@@ -238,7 +238,7 @@ async function updateWorkerProfile(client, userId, profileData) {
 
     const result = await client.query(
       `UPDATE worker_profiles SET skills = $1, experience = $2, availability = $3, 
-       service_area = $4, hourly_rate = $5, updated_at = CURRENT_TIMESTAMP 
+       service_area = $4, monthly_salary = $5, updated_at = CURRENT_TIMESTAMP 
        WHERE user_id = $6 RETURNING *`,
       [skills, experience, availability, serviceArea, hourlyRate, userId]
     );
