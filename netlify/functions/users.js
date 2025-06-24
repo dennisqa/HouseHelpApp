@@ -234,14 +234,32 @@ async function updateWorkerProfile(client, userId, profileData) {
   try {
     console.log('Updating worker profile for user:', userId);
     
-    const { skills, experience, availability, serviceArea, monthlyRate } = profileData;
+    const { skills, experience, availability, serviceArea, monthly_salary } = profileData;
 
     const result = await client.query(
       `UPDATE worker_profiles SET skills = $1, experience = $2, availability = $3, 
        service_area = $4, monthly_salary = $5, updated_at = CURRENT_TIMESTAMP 
        WHERE user_id = $6 RETURNING *`,
-      [skills, experience, availability, serviceArea, monthlyRate, userId]
+      [skills, experience, availability, serviceArea, monthly_salary, userId]
     );
+
+    // Update user is_active status
+    await client.query(
+      'UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [true, userId]
+    );
+
+    console.log('Worker profile updated successfully');
+    return { statusCode: 200, headers, body: JSON.stringify(result.rows[0]) };
+  } catch (error) {
+    console.error('Update worker profile error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Failed to update profile: ' + error.message })
+    };
+  }
+}
 
     // Update user is_active status
     await client.query(
