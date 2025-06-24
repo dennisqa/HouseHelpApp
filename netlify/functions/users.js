@@ -83,7 +83,7 @@ async function registerUser(client, userData) {
     const { 
       name, email, phone, location, password, about, 
       user_type, skills, experience, availability, 
-      service_area, monthly_salary 
+      service_area, monthly_salary, age, job_type, profile_photo_url
     } = userData;
 
     // Validation
@@ -112,7 +112,7 @@ async function registerUser(client, userData) {
     const userResult = await client.query(
       `INSERT INTO users (name, email, phone, location, password, about, user_type, is_active) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [name, email, phone, location, hashedPassword, about, user_type, true]
+      [name, email, phone, location, hashedPassword, about || '', user_type, true]
     );
 
     const newUser = userResult.rows[0];
@@ -122,7 +122,14 @@ async function registerUser(client, userData) {
       await client.query(
         `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary) 
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [newUser.id, skills, experience, availability, service_area || location, monthly_salary]
+        [
+          newUser.id, 
+          skills || '', 
+          experience || '', 
+          availability || '', 
+          service_area || location, 
+          monthly_salary || ''
+        ]
       );
     }
 
