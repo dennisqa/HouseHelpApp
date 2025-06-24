@@ -1,0 +1,8 @@
+{
+  "name": "domestic-workers-netlify",
+  "version": "1.0.0",
+  "dependencies": {
+    "pg": "^8.11.3",
+    "bcrypt": "^5.1.1"
+  }
+}
