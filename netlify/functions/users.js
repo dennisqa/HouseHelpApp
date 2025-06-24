@@ -175,7 +175,7 @@ async function loginUser(client, credentials) {
         user.experience = workerResult.rows[0].experience;
         user.availability = workerResult.rows[0].availability;
         user.serviceArea = workerResult.rows[0].service_area;
-        user.hourlyRate = workerResult.rows[0].monthly_salary;
+        user.monthlyRate = workerResult.rows[0].monthly_salary;
         user.rating = workerResult.rows[0].rating;
       }
     }
@@ -234,13 +234,13 @@ async function updateWorkerProfile(client, userId, profileData) {
   try {
     console.log('Updating worker profile for user:', userId);
     
-    const { skills, experience, availability, serviceArea, hourlyRate } = profileData;
+    const { skills, experience, availability, serviceArea, monthlyRate } = profileData;
 
     const result = await client.query(
       `UPDATE worker_profiles SET skills = $1, experience = $2, availability = $3, 
        service_area = $4, monthly_salary = $5, updated_at = CURRENT_TIMESTAMP 
        WHERE user_id = $6 RETURNING *`,
-      [skills, experience, availability, serviceArea, hourlyRate, userId]
+      [skills, experience, availability, serviceArea, monthlyRate, userId]
     );
 
     // Update user is_active status
