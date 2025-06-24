@@ -120,15 +120,18 @@ async function registerUser(client, userData) {
     // Create worker profile if needed
     if (user_type === 'worker') {
       await client.query(
-        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary) 
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary, age, job_type, profile_photo_url) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           newUser.id, 
           skills || '', 
           experience || '', 
           availability || '', 
           service_area || location, 
-          monthly_salary || ''
+          monthly_salary || '',
+          age || null,
+          job_type || '',
+          profile_photo_url || ''
         ]
       );
     }
@@ -182,8 +185,11 @@ async function loginUser(client, credentials) {
         user.experience = workerResult.rows[0].experience;
         user.availability = workerResult.rows[0].availability;
         user.serviceArea = workerResult.rows[0].service_area;
-        user.monthlyRate = workerResult.rows[0].monthly_salary;
+        user.monthlySalary = workerResult.rows[0].monthly_salary;
         user.rating = workerResult.rows[0].rating;
+        user.age = workerResult.rows[0].age;
+        user.job_type = workerResult.rows[0].job_type;
+        user.profile_photo_url = workerResult.rows[0].profile_photo_url;
       }
     }
 
@@ -210,7 +216,8 @@ async function getWorkers(client) {
     
     const result = await client.query(`
       SELECT u.*, wp.skills, wp.experience, wp.availability, 
-             wp.service_area, wp.monthly_salary, wp.rating
+             wp.service_area, wp.monthly_salary, wp.rating, wp.age, 
+             wp.job_type, wp.profile_photo_url
       FROM users u
       JOIN worker_profiles wp ON u.id = wp.user_id
       WHERE u.user_type = 'worker' AND u.is_active = true
@@ -222,7 +229,8 @@ async function getWorkers(client) {
       ...worker,
       type: worker.user_type,
       isActive: worker.is_active,
-      serviceArea: worker.service_area
+      serviceArea: worker.service_area,
+      monthlySalary: worker.monthly_salary
     }));
 
     console.log('Found workers:', workers.length);
@@ -249,24 +257,6 @@ async function updateWorkerProfile(client, userId, profileData) {
        WHERE user_id = $6 RETURNING *`,
       [skills, experience, availability, serviceArea, monthly_salary, userId]
     );
-
-    // Update user is_active status
-    await client.query(
-      'UPDATE users SET is_active = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [true, userId]
-    );
-
-    console.log('Worker profile updated successfully');
-    return { statusCode: 200, headers, body: JSON.stringify(result.rows[0]) };
-  } catch (error) {
-    console.error('Update worker profile error:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: 'Failed to update profile: ' + error.message })
-    };
-  }
-}
 
     // Update user is_active status
     await client.query(
