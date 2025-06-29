@@ -25,7 +25,8 @@ exports.handler = async (event, context) => {
     switch (httpMethod) {
       case 'GET':
         const employerId = queryStringParameters?.employer_id;
-        return await getJobs(client, employerId);
+        const jobType = queryStringParameters?.job_type;
+        return await getJobs(client, employerId, jobType);
       
       case 'POST':
         return await createJob(client, data);
@@ -49,83 +50,243 @@ exports.handler = async (event, context) => {
   }
 };
 
-async function getJobs(client, employerId) {
-  let query = `
-    SELECT j.*, u.name as employer_name, u.email as employer_email, u.phone as employer_phone
-    FROM jobs j
-    JOIN users u ON j.employer_id = u.id
-    WHERE j.status = 'active'
-  `;
-  let params = [];
+async function getJobs(client, employerId, jobType) {
+  try {
+    console.log('Getting jobs with filters - employerId:', employerId, 'jobType:', jobType);
+    
+    let query = `
+      SELECT j.*, u.name as employer_name, u.email as employer_email, 
+             u.phone as employer_phone, u.profile_photo_url as employer_photo
+      FROM jobs j
+      JOIN users u ON j.employer_id = u.id
+      WHERE j.status = 'active'
+    `;
+    let params = [];
+    let paramIndex = 1;
 
-  if (employerId) {
-    query += ' AND j.employer_id = $1';
-    params.push(employerId);
+    if (employerId) {
+      query += ` AND j.employer_id = $${paramIndex}`;
+      params.push(employerId);
+      paramIndex++;
+    }
+
+    if (jobType) {
+      query += ` AND j.job_type = $${paramIndex}`;
+      params.push(jobType);
+      paramIndex++;
+    }
+
+    query += ' ORDER BY j.posted_date DESC';
+
+    const result = await client.query(query, params);
+    
+    // Add compatibility fields and format data
+    const jobs = result.rows.map(job => ({
+      ...job,
+      employerId: job.employer_id,
+      employer: job.employer_name,
+      schedule: job.work_schedule,
+      salary: job.salary_range,
+      skills: job.skills_required,
+      posted: new Date(job.posted_date).toLocaleDateString(),
+      // Format job type for display
+      jobTypeDisplay: job.job_type === 'permanent' ? 'Permanent Position' : 
+                     job.job_type === 'daily' ? 'Daily/Casual Work' : 'Not specified'
+    }));
+
+    console.log('Found jobs:', jobs.length);
+    return { statusCode: 200, headers, body: JSON.stringify(jobs) };
+  } catch (error) {
+    console.error('Get jobs error:', error);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to get jobs: ' + error.message }) };
   }
-
-  query += ' ORDER BY j.posted_date DESC';
-
-  const result = await client.query(query, params);
-  
-  // Add compatibility fields
-  const jobs = result.rows.map(job => ({
-    ...job,
-    employerId: job.employer_id,
-    employer: job.employer_name,
-    schedule: job.work_schedule,
-    salary: job.salary_range,
-    posted: 'Just now' // You can format this properly
-  }));
-
-  return { statusCode: 200, headers, body: JSON.stringify(jobs) };
 }
 
 async function createJob(client, jobData) {
-  const { 
-    employer_id, title, description, skills_required, 
-    work_schedule, location, salary_range 
-  } = jobData;
+  try {
+    console.log('Creating job:', jobData);
+    
+    const { 
+      employer_id, title, description, skills_required, 
+      work_schedule, location, salary_range, job_type,
+      commission_amount, payment_status
+    } = jobData;
 
-  const result = await client.query(
-    `INSERT INTO jobs (employer_id, title, description, skills_required, work_schedule, location, salary_range, status) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 'active') RETURNING *`,
-    [employer_id, title, description, skills_required, work_schedule, location, salary_range]
-  );
+    if (!employer_id || !title || !description || !skills_required || 
+        !work_schedule || !location || !salary_range) {
+      return { 
+        statusCode: 400, 
+        headers, 
+        body: JSON.stringify({ error: 'All job fields are required' }) 
+      };
+    }
 
-  const job = result.rows[0];
-  // Add compatibility fields
-  job.employerId = job.employer_id;
-  job.schedule = job.work_schedule;
-  job.salary = job.salary_range;
-  job.skills = job.skills_required;
-  job.posted = 'Just now';
+    if (job_type && !['permanent', 'daily'].includes(job_type)) {
+      return { 
+        statusCode: 400, 
+        headers, 
+        body: JSON.stringify({ error: 'Invalid job type. Must be "permanent" or "daily"' }) 
+      };
+    }
 
-  return { statusCode: 201, headers, body: JSON.stringify(job) };
+    // Verify employer exists
+    const employerCheck = await client.query(
+      'SELECT id FROM users WHERE id = $1 AND user_type = $2', 
+      [employer_id, 'employer']
+    );
+    
+    if (employerCheck.rows.length === 0) {
+      return { 
+        statusCode: 404, 
+        headers, 
+        body: JSON.stringify({ error: 'Employer not found' }) 
+      };
+    }
+
+    const result = await client.query(
+      `INSERT INTO jobs (
+        employer_id, title, description, skills_required, work_schedule, 
+        location, salary_range, job_type, status, posted_date,
+        commission_amount, payment_status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', CURRENT_TIMESTAMP, $9, $10) 
+      RETURNING *`,
+      [
+        employer_id, title, description, skills_required, work_schedule, 
+        location, salary_range, job_type || null, 
+        commission_amount || 300.00, payment_status || 'pending'
+      ]
+    );
+
+    const job = result.rows[0];
+    
+    // Add compatibility fields
+    job.employerId = job.employer_id;
+    job.schedule = job.work_schedule;
+    job.salary = job.salary_range;
+    job.skills = job.skills_required;
+    job.posted = new Date(job.posted_date).toLocaleDateString();
+    job.jobTypeDisplay = job.job_type === 'permanent' ? 'Permanent Position' : 
+                        job.job_type === 'daily' ? 'Daily/Casual Work' : 'Not specified';
+
+    console.log('Job created successfully');
+    return { statusCode: 201, headers, body: JSON.stringify(job) };
+  } catch (error) {
+    console.error('Create job error:', error);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to create job: ' + error.message }) };
+  }
 }
 
 async function updateJob(client, jobId, jobData) {
-  const { title, description, skills_required, work_schedule, location, salary_range } = jobData;
+  try {
+    console.log('Updating job:', jobId, jobData);
+    
+    const { title, description, skills_required, work_schedule, location, salary_range, job_type } = jobData;
 
-  const result = await client.query(
-    `UPDATE jobs SET title = $1, description = $2, skills_required = $3, 
-     work_schedule = $4, location = $5, salary_range = $6, updated_at = CURRENT_TIMESTAMP 
-     WHERE id = $7 RETURNING *`,
-    [title, description, skills_required, work_schedule, location, salary_range, jobId]
-  );
+    if (!jobId) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Job ID required' }) };
+    }
 
-  if (result.rows.length === 0) {
-    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Job not found' }) };
+    if (job_type && !['permanent', 'daily'].includes(job_type)) {
+      return { 
+        statusCode: 400, 
+        headers, 
+        body: JSON.stringify({ error: 'Invalid job type. Must be "permanent" or "daily"' }) 
+      };
+    }
+
+    let updateFields = [];
+    let values = [];
+    let paramIndex = 1;
+
+    if (title) {
+      updateFields.push(`title = $${paramIndex}`);
+      values.push(title);
+      paramIndex++;
+    }
+    if (description) {
+      updateFields.push(`description = $${paramIndex}`);
+      values.push(description);
+      paramIndex++;
+    }
+    if (skills_required) {
+      updateFields.push(`skills_required = $${paramIndex}`);
+      values.push(skills_required);
+      paramIndex++;
+    }
+    if (work_schedule) {
+      updateFields.push(`work_schedule = $${paramIndex}`);
+      values.push(work_schedule);
+      paramIndex++;
+    }
+    if (location) {
+      updateFields.push(`location = $${paramIndex}`);
+      values.push(location);
+      paramIndex++;
+    }
+    if (salary_range) {
+      updateFields.push(`salary_range = $${paramIndex}`);
+      values.push(salary_range);
+      paramIndex++;
+    }
+    if (job_type) {
+      updateFields.push(`job_type = $${paramIndex}`);
+      values.push(job_type);
+      paramIndex++;
+    }
+
+    if (updateFields.length === 0) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No fields to update' }) };
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(jobId);
+
+    const query = `UPDATE jobs SET ${updateFields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+    const result = await client.query(query, values);
+
+    if (result.rows.length === 0) {
+      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Job not found' }) };
+    }
+
+    const updatedJob = result.rows[0];
+    
+    // Add compatibility fields
+    updatedJob.employerId = updatedJob.employer_id;
+    updatedJob.schedule = updatedJob.work_schedule;
+    updatedJob.salary = updatedJob.salary_range;
+    updatedJob.skills = updatedJob.skills_required;
+    updatedJob.posted = new Date(updatedJob.posted_date).toLocaleDateString();
+
+    console.log('Job updated successfully');
+    return { statusCode: 200, headers, body: JSON.stringify(updatedJob) };
+  } catch (error) {
+    console.error('Update job error:', error);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to update job: ' + error.message }) };
   }
-
-  return { statusCode: 200, headers, body: JSON.stringify(result.rows[0]) };
 }
 
 async function deleteJob(client, jobId) {
-  const result = await client.query('DELETE FROM jobs WHERE id = $1 RETURNING *', [jobId]);
+  try {
+    console.log('Deleting job:', jobId);
+    
+    if (!jobId) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Job ID required' }) };
+    }
 
-  if (result.rows.length === 0) {
-    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Job not found' }) };
+    // Soft delete by updating status instead of hard delete to preserve data integrity
+    const result = await client.query(
+      'UPDATE jobs SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *', 
+      ['deleted', jobId]
+    );
+
+    if (result.rows.length === 0) {
+      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Job not found' }) };
+    }
+
+    console.log('Job deleted successfully');
+    return { statusCode: 200, headers, body: JSON.stringify({ message: 'Job deleted successfully' }) };
+  } catch (error) {
+    console.error('Delete job error:', error);
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to delete job: ' + error.message }) };
   }
-
-  return { statusCode: 200, headers, body: JSON.stringify({ message: 'Job deleted successfully' }) };
 }
