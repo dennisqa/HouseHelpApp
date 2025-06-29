@@ -83,7 +83,8 @@ async function registerUser(client, userData) {
     const { 
       name, email, phone, location, password, about, 
       user_type, skills, experience, availability, 
-      service_area, monthly_salary, age, job_type, profile_photo_url
+      service_area, monthly_salary, age, job_type,
+      profile_photo_url, id_document_url
     } = userData;
 
     // Validation
@@ -93,6 +94,25 @@ async function registerUser(client, userData) {
         headers,
         body: JSON.stringify({ error: 'Missing required fields' })
       };
+    }
+
+    // Additional validation for workers
+    if (user_type === 'worker') {
+      if (!age || !skills || !experience || !availability || !monthly_salary || !job_type || !profile_photo_url || !id_document_url) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Missing required worker fields including profile photo and ID document' })
+        };
+      }
+      
+      if (age < 18 || age > 70) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Age must be between 18 and 70 years' })
+        };
+      }
     }
 
     // Check if user exists
@@ -108,11 +128,11 @@ async function registerUser(client, userData) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user
+    // Insert user with photo and ID document URLs
     const userResult = await client.query(
-      `INSERT INTO users (name, email, phone, location, password, about, user_type, is_active) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [name, email, phone, location, hashedPassword, about || '', user_type, true]
+      `INSERT INTO users (name, email, phone, location, password, about, user_type, is_active, age, profile_photo_url, id_document_url, id_verified) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [name, email, phone, location, hashedPassword, about, user_type, true, age || null, profile_photo_url || null, id_document_url || null, user_type === 'worker' ? true : false]
     );
 
     const newUser = userResult.rows[0];
@@ -120,19 +140,9 @@ async function registerUser(client, userData) {
     // Create worker profile if needed
     if (user_type === 'worker') {
       await client.query(
-        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary, age, job_type, profile_photo_url) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          newUser.id, 
-          skills || '', 
-          experience || '', 
-          availability || '', 
-          service_area || location, 
-          monthly_salary || '',
-          age || null,
-          job_type || '',
-          profile_photo_url || ''
-        ]
+        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary, job_type_preference) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [newUser.id, skills, experience, availability, service_area || location, monthly_salary, job_type]
       );
     }
 
@@ -185,11 +195,10 @@ async function loginUser(client, credentials) {
         user.experience = workerResult.rows[0].experience;
         user.availability = workerResult.rows[0].availability;
         user.serviceArea = workerResult.rows[0].service_area;
-        user.monthlySalary = workerResult.rows[0].monthly_salary;
+        user.monthly_salary = workerResult.rows[0].monthly_salary;
+        user.hourlyRate = workerResult.rows[0].hourly_rate;
         user.rating = workerResult.rows[0].rating;
-        user.age = workerResult.rows[0].age;
-        user.job_type = workerResult.rows[0].job_type;
-        user.profile_photo_url = workerResult.rows[0].profile_photo_url;
+        user.job_type = workerResult.rows[0].job_type_preference;
       }
     }
 
@@ -216,8 +225,7 @@ async function getWorkers(client) {
     
     const result = await client.query(`
       SELECT u.*, wp.skills, wp.experience, wp.availability, 
-             wp.service_area, wp.monthly_salary, wp.rating, wp.age, 
-             wp.job_type, wp.profile_photo_url
+             wp.service_area, wp.monthly_salary, wp.hourly_rate, wp.rating, wp.job_type_preference
       FROM users u
       JOIN worker_profiles wp ON u.id = wp.user_id
       WHERE u.user_type = 'worker' AND u.is_active = true
@@ -230,7 +238,8 @@ async function getWorkers(client) {
       type: worker.user_type,
       isActive: worker.is_active,
       serviceArea: worker.service_area,
-      monthlySalary: worker.monthly_salary
+      monthlySalary: worker.monthly_salary,
+      hourlyRate: worker.hourly_rate
     }));
 
     console.log('Found workers:', workers.length);
@@ -249,13 +258,13 @@ async function updateWorkerProfile(client, userId, profileData) {
   try {
     console.log('Updating worker profile for user:', userId);
     
-    const { skills, experience, availability, serviceArea, monthly_salary } = profileData;
+    const { skills, experience, availability, service_area, monthly_salary } = profileData;
 
     const result = await client.query(
       `UPDATE worker_profiles SET skills = $1, experience = $2, availability = $3, 
        service_area = $4, monthly_salary = $5, updated_at = CURRENT_TIMESTAMP 
        WHERE user_id = $6 RETURNING *`,
-      [skills, experience, availability, serviceArea, monthly_salary, userId]
+      [skills, experience, availability, service_area, monthly_salary, userId]
     );
 
     // Update user is_active status
