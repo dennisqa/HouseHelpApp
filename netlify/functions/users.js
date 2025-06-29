@@ -38,12 +38,19 @@ exports.handler = async (event, context) => {
           return await registerUser(client, data);
         } else if (action === 'login') {
           return await loginUser(client, data);
+        } else if (action === 'upload-photo') {
+          return await uploadProfilePhoto(client, data);
+        } else if (action === 'upload-id') {
+          return await uploadIdDocument(client, data);
         }
         break;
       
       case 'GET':
         if (action === 'workers') {
           return await getWorkers(client);
+        } else if (action === 'profile') {
+          const userId = queryStringParameters?.user_id;
+          return await getUserProfile(client, userId);
         }
         break;
       
@@ -83,34 +90,42 @@ async function registerUser(client, userData) {
     const { 
       name, email, phone, location, password, about, 
       user_type, skills, experience, availability, 
-      service_area, monthly_salary, age, job_type,
+      service_area, monthly_salary, age, job_type, 
       profile_photo_url, id_document_url
     } = userData;
 
-    // Validation
+    // Validation for basic fields
     if (!name || !email || !phone || !location || !password || !user_type) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Missing required fields' })
+        body: JSON.stringify({ error: 'Missing required fields: name, email, phone, location, password, and user_type are required' })
       };
     }
 
-    // Additional validation for workers
+    // Additional validation for workers - age is mandatory
     if (user_type === 'worker') {
-      if (!age || !skills || !experience || !availability || !monthly_salary || !job_type || !profile_photo_url || !id_document_url) {
+      if (!age || isNaN(parseInt(age)) || parseInt(age) < 18 || parseInt(age) > 80) {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Missing required worker fields including profile photo and ID document' })
+          body: JSON.stringify({ error: 'Age is required for workers and must be between 18 and 80' })
         };
       }
       
-      if (age < 18 || age > 70) {
+      if (!skills || skills.trim() === '') {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'Age must be between 18 and 70 years' })
+          body: JSON.stringify({ error: 'Skills are required for workers' })
+        };
+      }
+      
+      if (!experience || experience.trim() === '') {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Experience is required for workers' })
         };
       }
     }
@@ -130,9 +145,9 @@ async function registerUser(client, userData) {
 
     // Insert user with photo and ID document URLs
     const userResult = await client.query(
-      `INSERT INTO users (name, email, phone, location, password, about, user_type, is_active, age, profile_photo_url, id_document_url, id_verified) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [name, email, phone, location, hashedPassword, about, user_type, true, age || null, profile_photo_url || null, id_document_url || null, user_type === 'worker' ? true : false]
+      `INSERT INTO users (name, email, phone, location, password, about, user_type, is_active, profile_photo_url, id_document_url) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [name, email, phone, location, hashedPassword, about || '', user_type, true, profile_photo_url || '', id_document_url || '']
     );
 
     const newUser = userResult.rows[0];
@@ -140,9 +155,19 @@ async function registerUser(client, userData) {
     // Create worker profile if needed
     if (user_type === 'worker') {
       await client.query(
-        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary, job_type_preference) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [newUser.id, skills, experience, availability, service_area || location, monthly_salary, job_type]
+        `INSERT INTO worker_profiles (user_id, skills, experience, availability, service_area, monthly_salary, age, job_type, profile_photo_url) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [
+          newUser.id, 
+          skills.trim(), 
+          experience.trim(), 
+          availability || '', 
+          service_area || location, 
+          monthly_salary || '',
+          parseInt(age), // Age is now mandatory and validated
+          job_type || '',
+          profile_photo_url || ''
+        ]
       );
     }
 
@@ -155,6 +180,134 @@ async function registerUser(client, userData) {
       statusCode: 500,
       headers,
       body: JSON.stringify({ error: 'Registration failed: ' + error.message })
+    };
+  }
+}
+
+async function uploadProfilePhoto(client, uploadData) {
+  try {
+    const { user_id, photo_url } = uploadData;
+
+    if (!user_id || !photo_url) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'User ID and photo URL required' })
+      };
+    }
+
+    // Update user profile photo
+    await client.query(
+      'UPDATE users SET profile_photo_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [photo_url, user_id]
+    );
+
+    // Also update worker profile if exists
+    await client.query(
+      'UPDATE worker_profiles SET profile_photo_url = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2',
+      [photo_url, user_id]
+    );
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ message: 'Profile photo updated successfully', photo_url })
+    };
+  } catch (error) {
+    console.error('Upload photo error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Failed to upload photo: ' + error.message })
+    };
+  }
+}
+
+async function uploadIdDocument(client, uploadData) {
+  try {
+    const { user_id, id_document_url } = uploadData;
+
+    if (!user_id || !id_document_url) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'User ID and document URL required' })
+      };
+    }
+
+    // Update user ID document
+    const result = await client.query(
+      'UPDATE users SET id_document_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [id_document_url, user_id]
+    );
+
+    if (result.rows.length === 0) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: 'User not found' })
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ message: 'ID document uploaded successfully', id_document_url })
+    };
+  } catch (error) {
+    console.error('Upload ID document error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Failed to upload ID document: ' + error.message })
+    };
+  }
+}
+
+async function getUserProfile(client, userId) {
+  try {
+    if (!userId) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'User ID required' })
+      };
+    }
+
+    const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return { statusCode: 404, headers, body: JSON.stringify({ error: 'User not found' }) };
+    }
+
+    const user = userResult.rows[0];
+
+    // Get worker profile if applicable
+    if (user.user_type === 'worker') {
+      const workerResult = await client.query('SELECT * FROM worker_profiles WHERE user_id = $1', [user.id]);
+      if (workerResult.rows.length > 0) {
+        user.worker_profile = workerResult.rows[0];
+        // Add fields to user object for compatibility
+        user.skills = workerResult.rows[0].skills;
+        user.experience = workerResult.rows[0].experience;
+        user.availability = workerResult.rows[0].availability;
+        user.serviceArea = workerResult.rows[0].service_area;
+        user.monthlySalary = workerResult.rows[0].monthly_salary;
+        user.rating = workerResult.rows[0].rating;
+        user.age = workerResult.rows[0].age;
+        user.job_type = workerResult.rows[0].job_type;
+        // Use worker_profile photo if available, otherwise use user photo
+        user.profile_photo_url = workerResult.rows[0].profile_photo_url || user.profile_photo_url;
+      }
+    }
+
+    delete user.password;
+    return { statusCode: 200, headers, body: JSON.stringify(user) };
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Failed to get profile: ' + error.message })
     };
   }
 }
@@ -195,10 +348,12 @@ async function loginUser(client, credentials) {
         user.experience = workerResult.rows[0].experience;
         user.availability = workerResult.rows[0].availability;
         user.serviceArea = workerResult.rows[0].service_area;
-        user.monthly_salary = workerResult.rows[0].monthly_salary;
-        user.hourlyRate = workerResult.rows[0].hourly_rate;
+        user.monthlySalary = workerResult.rows[0].monthly_salary;
         user.rating = workerResult.rows[0].rating;
-        user.job_type = workerResult.rows[0].job_type_preference;
+        user.age = workerResult.rows[0].age;
+        user.job_type = workerResult.rows[0].job_type;
+        // Use worker_profile photo if available, otherwise use user photo
+        user.profile_photo_url = workerResult.rows[0].profile_photo_url || user.profile_photo_url;
       }
     }
 
@@ -225,7 +380,8 @@ async function getWorkers(client) {
     
     const result = await client.query(`
       SELECT u.*, wp.skills, wp.experience, wp.availability, 
-             wp.service_area, wp.monthly_salary, wp.hourly_rate, wp.rating, wp.job_type_preference
+             wp.service_area, wp.monthly_salary, wp.rating, wp.age, 
+             wp.job_type, COALESCE(wp.profile_photo_url, u.profile_photo_url) as profile_photo_url
       FROM users u
       JOIN worker_profiles wp ON u.id = wp.user_id
       WHERE u.user_type = 'worker' AND u.is_active = true
@@ -238,8 +394,7 @@ async function getWorkers(client) {
       type: worker.user_type,
       isActive: worker.is_active,
       serviceArea: worker.service_area,
-      monthlySalary: worker.monthly_salary,
-      hourlyRate: worker.hourly_rate
+      monthlySalary: worker.monthly_salary
     }));
 
     console.log('Found workers:', workers.length);
@@ -258,14 +413,35 @@ async function updateWorkerProfile(client, userId, profileData) {
   try {
     console.log('Updating worker profile for user:', userId);
     
-    const { skills, experience, availability, service_area, monthly_salary } = profileData;
+    const { skills, experience, availability, serviceArea, monthly_salary, profile_photo_url, age } = profileData;
+
+    // Validate age if provided
+    if (age !== undefined && age !== null && age !== '') {
+      if (isNaN(parseInt(age)) || parseInt(age) < 18 || parseInt(age) > 80) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Age must be between 18 and 80' })
+        };
+      }
+    }
 
     const result = await client.query(
       `UPDATE worker_profiles SET skills = $1, experience = $2, availability = $3, 
-       service_area = $4, monthly_salary = $5, updated_at = CURRENT_TIMESTAMP 
-       WHERE user_id = $6 RETURNING *`,
-      [skills, experience, availability, service_area, monthly_salary, userId]
+       service_area = $4, monthly_salary = $5, profile_photo_url = $6, 
+       age = COALESCE($7, age), updated_at = CURRENT_TIMESTAMP 
+       WHERE user_id = $8 RETURNING *`,
+      [skills, experience, availability, serviceArea, monthly_salary, profile_photo_url || '', 
+       age ? parseInt(age) : null, userId]
     );
+
+    // Also update user profile photo if provided
+    if (profile_photo_url) {
+      await client.query(
+        'UPDATE users SET profile_photo_url = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [profile_photo_url, userId]
+      );
+    }
 
     // Update user is_active status
     await client.query(
@@ -287,12 +463,15 @@ async function updateWorkerProfile(client, userId, profileData) {
 
 async function updateUser(client, userId, updateData) {
   try {
-    const { name, phone, location, about } = updateData;
+    const { name, phone, location, about, profile_photo_url, id_document_url } = updateData;
 
     const result = await client.query(
-      `UPDATE users SET name = $1, phone = $2, location = $3, about = $4, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $5 RETURNING *`,
-      [name, phone, location, about, userId]
+      `UPDATE users SET name = $1, phone = $2, location = $3, about = $4, 
+       profile_photo_url = COALESCE($5, profile_photo_url), 
+       id_document_url = COALESCE($6, id_document_url),
+       updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $7 RETURNING *`,
+      [name, phone, location, about, profile_photo_url, id_document_url, userId]
     );
 
     if (result.rows.length === 0) {
