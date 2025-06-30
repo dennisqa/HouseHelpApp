@@ -598,18 +598,189 @@
                 );
             }
 
-            // Simplified screens for basic functionality
-            if (screen === "createWorkerAccount" || screen === "createEmployerAccount" || 
-                screen === "employerLogin" || screen === "workerLogin" || 
-                screen === "employerHome" || screen === "workerHome" ||
-                screen === "messages" || screen === "postJob") {
+            // Login Screens
+            if (screen === "employerLogin" || screen === "workerLogin") {
+                const isEmployer = screen === "employerLogin";
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className={`${isEmployer ? "bg-blue-600" : "bg-green-600"} p-4 text-white flex items-center`}>
+                                <ArrowLeftIcon onClick={() => setScreen("landing")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">{isEmployer ? "Employer" : "Worker"} Login</h1>
+                            </div>
+                            <div className="flex flex-col items-center justify-center flex-1 p-4">
+                                <div className="w-full max-w-sm">
+                                    <div className="text-center mb-8">
+                                        <div className={`w-16 h-16 ${isEmployer ? "bg-blue-100" : "bg-green-100"} rounded-full flex items-center justify-center mx-auto mb-4`}><UserIcon /></div>
+                                        <h2 className="text-2xl font-bold text-gray-800">Welcome Back!</h2>
+                                        <p className="text-gray-600 text-sm mt-2">Sign in to your {isEmployer ? "employer" : "worker"} account</p>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <div><label className="block text-gray-700 font-medium mb-2">Email Address</label><input type="email" placeholder="Enter your email" value={loginCredentials.email} onChange={(e) => setLoginCredentials({...loginCredentials, email: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 ${isEmployer ? "focus:ring-blue-500" : "focus:ring-green-500"} focus:border-transparent`} onKeyPress={(e) => e.key === "Enter" && handleLogin()} /></div>
+                                        <div><label className="block text-gray-700 font-medium mb-2">Password</label><input type="password" placeholder="Enter your password" value={loginCredentials.password} onChange={(e) => setLoginCredentials({...loginCredentials, password: e.target.value})} className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 ${isEmployer ? "focus:ring-blue-500" : "focus:ring-green-500"} focus:border-transparent`} onKeyPress={(e) => e.key === "Enter" && handleLogin()} /></div>
+                                        <button className={`w-full py-4 ${isEmployer ? "bg-blue-600 hover:bg-blue-700" : "bg-green-600 hover:bg-green-700"} text-white rounded-lg font-medium transition-colors`} onClick={handleLogin}>Sign In</button>
+                                        <div className="text-center mt-4"><p className="text-gray-600 text-sm">Don't have an account?<button className={`${isEmployer ? "text-blue-600" : "text-green-600"} ml-1 font-medium`} onClick={() => setScreen(isEmployer ? "createEmployerAccount" : "createWorkerAccount")}>Sign up here</button></p></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Create Employer Account Screen
+            if (screen === "createEmployerAccount") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("landing")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Create Employer Account</h1>
+                            </div>
+                            <div className="p-4 overflow-y-auto">
+                                <div className="text-center mb-6">
+                                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3"><UserIcon /></div>
+                                    <h2 className="text-lg font-bold text-gray-800">Join as an Employer</h2>
+                                    <p className="text-gray-600 text-sm">Find reliable household help for your family</p>
+                                </div>
+                                <div className="space-y-4">
+                                    <div><label className="block text-gray-700 font-medium mb-2">Full Name *</label><input type="text" name="name" placeholder="Enter your full name" value={registrationForm.name} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Email Address *</label><input type="email" name="email" placeholder="Enter your email" value={registrationForm.email} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Phone Number *</label><input type="tel" name="phone" placeholder="+254 712 345 678" value={registrationForm.phone} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Location *</label><input type="text" name="location" placeholder="City, Area (e.g., Westlands, Nairobi)" value={registrationForm.location} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Password *</label><input type="password" name="password" placeholder="Create a secure password (min 6 characters)" value={registrationForm.password} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Confirm Password *</label><input type="password" name="confirmPassword" placeholder="Confirm your password" value={registrationForm.confirmPassword} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">About Your Household (Optional)</label><textarea name="about" placeholder="Tell us about your family and what kind of help you're looking for..." value={registrationForm.about} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent" /></div>
+                                    <button className="w-full py-4 bg-blue-600 text-white rounded-lg font-medium mt-6 hover:bg-blue-700 transition-colors" onClick={() => handleRegistration("employer")}>Create Employer Account</button>
+                                    <div className="text-center mt-4"><p className="text-gray-600 text-sm">Already have an account?<button className="text-blue-600 ml-1 font-medium" onClick={() => setScreen("employerLogin")}>Login here</button></p></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Create Worker Account Screen (Simplified for now)
+            if (screen === "createWorkerAccount") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-green-600 p-4 text-white flex items-center">
+                                <ArrowLeftIcon onClick={() => setScreen("landing")} />
+                                <h1 className="text-xl font-bold flex-1 text-center">Create Worker Account</h1>
+                            </div>
+                            <div className="p-4 overflow-y-auto">
+                                <div className="text-center mb-6">
+                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3"><UserIcon /></div>
+                                    <h2 className="text-lg font-bold text-gray-800">Join as a Domestic Worker</h2>
+                                    <p className="text-gray-600 text-sm">Connect with families who need your skills</p>
+                                </div>
+                                <div className="space-y-4">
+                                    <div><label className="block text-gray-700 font-medium mb-2">Full Name *</label><input type="text" name="name" placeholder="Enter your full name" value={registrationForm.name} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Age *</label><input type="number" name="age" placeholder="Enter your age" min="18" max="70" value={registrationForm.age} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Email Address *</label><input type="email" name="email" placeholder="Enter your email" value={registrationForm.email} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Phone Number *</label><input type="tel" name="phone" placeholder="+254 712 345 678" value={registrationForm.phone} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Location *</label><input type="text" name="location" placeholder="City, Area (e.g., Kiambu, Nairobi)" value={registrationForm.location} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Skills *</label><input type="text" name="skills" placeholder="e.g., Cleaning, Cooking, Childcare, Gardening" value={registrationForm.skills} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Experience *</label><input type="text" name="experience" placeholder="e.g., 5 years as housekeeper" value={registrationForm.experience} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Expected Monthly Salary *</label><input type="text" name="monthlySalary" placeholder="e.g., KSh 25,000 - 35,000" value={registrationForm.monthlySalary} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Password *</label><input type="password" name="password" placeholder="Create a secure password (min 6 characters)" value={registrationForm.password} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Confirm Password *</label><input type="password" name="confirmPassword" placeholder="Confirm your password" value={registrationForm.confirmPassword} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <button className="w-full py-4 bg-green-600 text-white rounded-lg font-medium mt-6 hover:bg-green-700 transition-colors" onClick={() => handleRegistration("worker")}>Create Worker Account</button>
+                                    <div className="text-center mt-4"><p className="text-gray-600 text-sm">Already have an account?<button className="text-green-600 ml-1 font-medium" onClick={() => setScreen("workerLogin")}>Login here</button></p></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            // Home Screens
+            if (screen === "employerHome") {
+                const workers = getWorkers();
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-blue-600 p-4 text-white"><h1 className="text-xl font-bold text-center">Domestic Services App</h1></div>
+                            <div className="m-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                                <h2 className="text-lg font-bold text-gray-800">Welcome, {currentUser?.name || "User"}!</h2>
+                                <p className="text-gray-600">Employer Dashboard</p>
+                            </div>
+                            <div className="m-4">
+                                <h3 className="text-lg font-bold text-gray-800 mb-3">Quick Actions</h3>
+                                <div className="flex justify-between">
+                                    <div className="w-40 h-28 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow" onClick={() => setScreen("postJob")}>
+                                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mb-2"><PlusIcon /></div>
+                                        <span className="text-gray-800 font-medium">Post Job</span>
+                                    </div>
+                                    <div className="w-40 h-28 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:shadow-md transition-shadow" onClick={() => setScreen("viewWorkers")}>
+                                        <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center mb-2"><UserIcon /></div>
+                                        <span className="text-gray-800 font-medium">View Workers</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="m-4 pb-20">
+                                <h3 className="text-lg font-bold text-gray-800 mb-3">Available Workers ({workers.length})</h3>
+                                {workers.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {workers.slice(0, 3).map(worker => (
+                                            <div key={worker.id} className="p-4 bg-white rounded-lg shadow-sm flex items-center">
+                                                <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center"><UserIcon /></div>
+                                                <div className="ml-4 flex-1">
+                                                    <h4 className="font-bold text-gray-800">{worker.name}</h4>
+                                                    <p className="text-gray-600 text-sm">{worker.skills}</p>
+                                                </div>
+                                                <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">View</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8 bg-white rounded-lg">
+                                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4"><UserIcon /></div>
+                                        <h4 className="text-lg font-bold text-gray-800 mb-2">No Workers Available</h4>
+                                        <p className="text-gray-600">Workers will appear here once they create profiles.</p>
+                                    </div>
+                                )}
+                            </div>
+                            <BottomNavigation activeScreen="home" onNavigate={handleBottomNavigation} />
+                        </div>
+                    </div>
+                );
+            }
+
+            if (screen === "workerHome") {
+                return (
+                    <div className="mobile-container">
+                        <div className="flex flex-col h-screen bg-gray-50">
+                            <div className="bg-green-600 p-4 text-white"><h1 className="text-xl font-bold text-center">Worker Dashboard</h1></div>
+                            <div className="flex flex-col items-center mt-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center"><UserIcon /></div>
+                                <h2 className="font-bold text-gray-800 mt-2 text-xl">{currentUser?.name || "Worker"}</h2>
+                                <div className="px-3 py-1 bg-green-500 text-white text-xs rounded-full mt-2">Available</div>
+                            </div>
+                            <div className="p-4 mt-4 pb-20 overflow-y-auto">
+                                <h3 className="text-lg font-bold text-gray-800 mb-4">Summary</h3>
+                                <div className="space-y-4">
+                                    <div className="bg-white rounded-lg p-4 shadow-sm"><h4 className="font-bold text-gray-800">Available Jobs</h4><p className="text-gray-600">{jobs.length}</p></div>
+                                    <div className="bg-white rounded-lg p-4 shadow-sm"><h4 className="font-bold text-gray-800">Messages</h4><p className="text-gray-600">{conversations.length}</p></div>
+                                    <div className="bg-white rounded-lg p-4 shadow-sm"><h4 className="font-bold text-gray-800">Your Skills</h4><p className="text-gray-600">{currentUser?.skills || "Not set"}</p></div>
+                                </div>
+                            </div>
+                            <BottomNavigation activeScreen="home" onNavigate={handleBottomNavigation} />
+                        </div>
+                    </div>
+                );
+            }
+
+            // Simplified screens for remaining functionality
+            if (screen === "messages" || screen === "postJob" || screen === "viewWorkers") {
                 return (
                     <div className="mobile-container">
                         <div className="flex flex-col items-center justify-center p-4 h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
                             <div className="text-center">
                                 <h1 className="text-2xl font-bold text-blue-600 mb-4">Feature Coming Soon</h1>
                                 <p className="text-gray-600 mb-8">This feature is under development.</p>
-                                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors" onClick={() => setScreen("landing")}>Go Back</button>
+                                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors" onClick={() => setScreen(userType === "employer" ? "employerHome" : "workerHome")}>Go Back</button>
                             </div>
                         </div>
                     </div>
