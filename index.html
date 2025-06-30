@@ -121,6 +121,24 @@
             );
         };
 
+        // Service Categories
+        const serviceCategories = [
+            "House Helps",
+            "Home Nurses", 
+            "Car wash",
+            "Pest Control",
+            "House Cleaning",
+            "Seat and Carpet Cleaning",
+            "Garden Services",
+            "Child Care",
+            "Event Chefs",
+            "Plumber",
+            "DSTV and Other TV Services",
+            "Driver",
+            "Saloonist",
+            "Manicurist"
+        ];
+
         // Main App Component
         const App = () => {
             const [screen, setScreen] = useState("landing");
@@ -140,11 +158,12 @@
             const [registrationForm, setRegistrationForm] = useState({
                 name: "", age: "", email: "", phone: "", location: "", password: "", confirmPassword: "", about: "",
                 skills: "", experience: "", availability: "", serviceArea: "", monthlySalary: "", jobType: "",
-                profilePhoto: null, idDocument: null,
+                serviceCategory: "", profilePhoto: null, idDocument: null,
             });
 
             const [jobForm, setJobForm] = useState({
                 title: "", skills: "", schedule: "", location: "", salary: "", description: "", jobType: "",
+                serviceCategory: "",
             });
 
             // Load data on login
@@ -197,7 +216,8 @@
                 if (type === "worker") {
                     if (!age || !registrationForm.skills || !registrationForm.experience || 
                         !registrationForm.availability || !registrationForm.monthlySalary || 
-                        !registrationForm.jobType || !registrationForm.profilePhoto || !registrationForm.idDocument) {
+                        !registrationForm.jobType || !registrationForm.serviceCategory || 
+                        !registrationForm.profilePhoto || !registrationForm.idDocument) {
                         alert("Please fill in all worker-specific fields including photo and ID document");
                         return;
                     }
@@ -228,6 +248,7 @@
                         userData.service_area = registrationForm.serviceArea || location;
                         userData.monthly_salary = registrationForm.monthlySalary;
                         userData.job_type = registrationForm.jobType;
+                        userData.service_category = registrationForm.serviceCategory;
                         userData.profile_photo_url = registrationForm.profilePhoto;
                         userData.id_document_url = registrationForm.idDocument;
                     }
@@ -237,7 +258,7 @@
                     setRegistrationForm({
                         name: "", age: "", email: "", phone: "", location: "", password: "", confirmPassword: "", about: "",
                         skills: "", experience: "", availability: "", serviceArea: "", monthlySalary: "", jobType: "",
-                        profilePhoto: null, idDocument: null,
+                        serviceCategory: "", profilePhoto: null, idDocument: null,
                     });
                     
                     alert("Account created successfully! Please login with your credentials.");
@@ -345,7 +366,8 @@
             };
 
             const handlePostJob = async () => {
-                if (!jobForm.title || !jobForm.skills || !jobForm.schedule || !jobForm.location || !jobForm.salary || !jobForm.description || !jobForm.jobType) {
+                if (!jobForm.title || !jobForm.skills || !jobForm.schedule || !jobForm.location || 
+                    !jobForm.salary || !jobForm.description || !jobForm.jobType || !jobForm.serviceCategory) {
                     alert("Please fill in all required fields");
                     return;
                 }
@@ -363,6 +385,7 @@
                         location: jobForm.location,
                         salary_range: jobForm.salary,
                         job_type: jobForm.jobType,
+                        service_category: jobForm.serviceCategory,
                         commission_amount: 300.00,
                         payment_status: 'pending'
                     };
@@ -374,7 +397,7 @@
                         await ApiService.createJob(jobData);
                         const updatedJobs = await ApiService.getJobs();
                         setJobs(updatedJobs);
-                        setJobForm({ title: "", skills: "", schedule: "", location: "", salary: "", description: "", jobType: "", });
+                        setJobForm({ title: "", skills: "", schedule: "", location: "", salary: "", description: "", jobType: "", serviceCategory: "", });
                         alert("Payment successful! Your job has been posted and is now live.");
                         setScreen("employerHome");
                     } else {
@@ -505,6 +528,7 @@
                                     <div><label className="block text-gray-700 font-medium mb-2">Email Address *</label><input type="email" name="email" placeholder="Enter your email" value={registrationForm.email} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Phone Number *</label><input type="tel" name="phone" placeholder="+254 712 345 678" value={registrationForm.phone} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Location *</label><input type="text" name="location" placeholder="City, Area (e.g., Kiambu, Nairobi)" value={registrationForm.location} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
+                                    <div><label className="block text-gray-700 font-medium mb-2">Service Category *</label><select name="serviceCategory" value={registrationForm.serviceCategory} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required><option value="">Select service category</option>{serviceCategories.map(category => (<option key={category} value={category}>{category}</option>))}</select></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Job Type Preference *</label><select name="jobType" value={registrationForm.jobType} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required><option value="">Select job type preference</option><option value="permanent">Permanent Position</option><option value="daily">Daily/Casual Work</option><option value="both">Both Permanent & Daily</option></select></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Skills *</label><input type="text" name="skills" placeholder="e.g., Cleaning, Cooking, Childcare, Gardening" value={registrationForm.skills} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Experience *</label><input type="text" name="experience" placeholder="e.g., 5 years as housekeeper" value={registrationForm.experience} onChange={handleRegistrationFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent" required /></div>
@@ -667,6 +691,7 @@
                             <div className="p-4 mt-4 pb-20 overflow-y-auto">
                                 <h3 className="text-lg font-bold text-gray-800 mb-4">Summary</h3>
                                 <div className="space-y-4">
+                                    <div className="bg-white rounded-lg p-4 shadow-sm"><h4 className="font-bold text-gray-800">Service Category</h4><p className="text-gray-600">{currentUser?.service_category || "Not set"}</p></div>
                                     <div className="bg-white rounded-lg p-4 shadow-sm"><h4 className="font-bold text-gray-800">Available Jobs</h4><p className="text-gray-600">{jobs.length}</p></div>
                                     <div className="bg-white rounded-lg p-4 shadow-sm"><h4 className="font-bold text-gray-800">Messages</h4><p className="text-gray-600">{conversations.filter(c => c.unread).length} Unread</p></div>
                                     <div className="bg-white rounded-lg p-4 shadow-sm"><h4 className="font-bold text-gray-800">Your Salary Expectation</h4><p className="text-gray-600">{currentUser?.monthly_salary || currentUser?.monthlySalary || "Not set"}</p></div>
@@ -705,6 +730,7 @@
                                 </div>
                                 <h2 className="text-lg font-bold text-gray-800 mb-4">Job Details</h2>
                                 <div className="space-y-4">
+                                    <div><label className="block text-gray-700 font-medium mb-2">Service Category</label><select name="serviceCategory" value={jobForm.serviceCategory} onChange={handleJobFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required><option value="">Select service category</option>{serviceCategories.map(category => (<option key={category} value={category}>{category}</option>))}</select></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Job Title</label><input type="text" name="title" placeholder="e.g., Housekeeper Needed" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value={jobForm.title} onChange={handleJobFormChange} /></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Job Type</label><select name="jobType" value={jobForm.jobType} onChange={handleJobFormChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required><option value="">Select job type</option><option value="permanent">Permanent Position</option><option value="daily">Daily/Casual Work</option></select></div>
                                     <div><label className="block text-gray-700 font-medium mb-2">Required Skills</label><input type="text" name="skills" placeholder="e.g., Cleaning, Cooking" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" value={jobForm.skills} onChange={handleJobFormChange} /></div>
@@ -840,6 +866,7 @@
                                                             {job.job_type === 'permanent' ? 'Permanent' : 'Daily'}
                                                         </span>
                                                     </div>
+                                                    <p className="text-gray-600 text-sm mb-2">{job.service_category}</p>
                                                     <p className="text-gray-600 text-sm mb-2">{job.location}</p>
                                                     <p className="text-gray-600 text-sm mb-2">Skills: {job.skills_required}</p>
                                                     <p className="text-gray-600 text-sm mb-2">Schedule: {job.work_schedule}</p>
@@ -1068,6 +1095,10 @@
                                 <div className="bg-white rounded-lg p-4 shadow-sm">
                                     <h3 className="font-bold text-gray-800 mb-2">Professional Information</h3>
                                     <div className="space-y-2">
+                                        <div>
+                                            <span className="text-gray-600 block">Service Category:</span>
+                                            <span className="text-gray-800">{currentUser?.service_category || "Not set"}</span>
+                                        </div>
                                         <div>
                                             <span className="text-gray-600 block">Skills:</span>
                                             <span className="text-gray-800">{currentUser?.skills}</span>
