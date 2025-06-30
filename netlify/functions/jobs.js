@@ -26,7 +26,8 @@ exports.handler = async (event, context) => {
       case 'GET':
         const employerId = queryStringParameters?.employer_id;
         const jobType = queryStringParameters?.job_type;
-        return await getJobs(client, employerId, jobType);
+        const serviceCategory = queryStringParameters?.service_category; // NEW FILTER
+        return await getJobs(client, employerId, jobType, serviceCategory);
       
       case 'POST':
         return await createJob(client, data);
@@ -50,10 +51,11 @@ exports.handler = async (event, context) => {
   }
 };
 
-async function getJobs(client, employerId, jobType) {
+async function getJobs(client, employerId, jobType, serviceCategory) {
   try {
-    console.log('Getting jobs with filters - employerId:', employerId, 'jobType:', jobType);
+    console.log('Getting jobs with filters - employerId:', employerId, 'jobType:', jobType, 'serviceCategory:', serviceCategory);
     
+    // NOW INCLUDING SERVICE_CATEGORY IN SELECT
     let query = `
       SELECT j.*, u.name as employer_name, u.email as employer_email, 
              u.phone as employer_phone, u.profile_photo_url as employer_photo
@@ -73,6 +75,13 @@ async function getJobs(client, employerId, jobType) {
     if (jobType) {
       query += ` AND j.job_type = $${paramIndex}`;
       params.push(jobType);
+      paramIndex++;
+    }
+
+    // NEW SERVICE CATEGORY FILTER
+    if (serviceCategory) {
+      query += ` AND j.service_category = $${paramIndex}`;
+      params.push(serviceCategory);
       paramIndex++;
     }
 
@@ -109,7 +118,7 @@ async function createJob(client, jobData) {
     const { 
       employer_id, title, description, skills_required, 
       work_schedule, location, salary_range, job_type,
-      commission_amount, payment_status
+      service_category, commission_amount, payment_status // NEW FIELD
     } = jobData;
 
     if (!employer_id || !title || !description || !skills_required || 
@@ -129,6 +138,15 @@ async function createJob(client, jobData) {
       };
     }
 
+    // NEW VALIDATION FOR SERVICE CATEGORY
+    if (!service_category || service_category.trim() === '') {
+      return { 
+        statusCode: 400, 
+        headers, 
+        body: JSON.stringify({ error: 'Service category is required' }) 
+      };
+    }
+
     // Verify employer exists
     const employerCheck = await client.query(
       'SELECT id FROM users WHERE id = $1 AND user_type = $2', 
@@ -143,16 +161,17 @@ async function createJob(client, jobData) {
       };
     }
 
+    // NOW INCLUDING SERVICE_CATEGORY IN INSERT
     const result = await client.query(
       `INSERT INTO jobs (
         employer_id, title, description, skills_required, work_schedule, 
-        location, salary_range, job_type, status, posted_date,
+        location, salary_range, job_type, service_category, status, posted_date,
         commission_amount, payment_status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', CURRENT_TIMESTAMP, $9, $10) 
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'active', CURRENT_TIMESTAMP, $10, $11) 
       RETURNING *`,
       [
         employer_id, title, description, skills_required, work_schedule, 
-        location, salary_range, job_type || null, 
+        location, salary_range, job_type || null, service_category, // NEW FIELD
         commission_amount || 300.00, payment_status || 'pending'
       ]
     );
@@ -180,7 +199,7 @@ async function updateJob(client, jobId, jobData) {
   try {
     console.log('Updating job:', jobId, jobData);
     
-    const { title, description, skills_required, work_schedule, location, salary_range, job_type } = jobData;
+    const { title, description, skills_required, work_schedule, location, salary_range, job_type, service_category } = jobData;
 
     if (!jobId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Job ID required' }) };
@@ -231,6 +250,12 @@ async function updateJob(client, jobId, jobData) {
     if (job_type) {
       updateFields.push(`job_type = $${paramIndex}`);
       values.push(job_type);
+      paramIndex++;
+    }
+    // NEW SERVICE CATEGORY UPDATE
+    if (service_category) {
+      updateFields.push(`service_category = $${paramIndex}`);
+      values.push(service_category);
       paramIndex++;
     }
 
